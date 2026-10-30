@@ -94,6 +94,11 @@ tr.dup td{opacity:.45}
 .rq .g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.rq .g2>div{min-width:0}@media(max-width:780px){.rq .g2{grid-template-columns:1fr}}
 .rq code{background:var(--card2);padding:1px 6px;border-radius:5px}
 .rq a.btn{text-decoration:none;display:inline-block}
+.rq .rq-opts{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}@media(max-width:780px){.rq .rq-opts{grid-template-columns:1fr}}
+.rq .rq-opt{background:var(--card);border:2px solid var(--line);border-radius:14px;padding:16px;cursor:pointer}.rq .rq-opt:hover,.rq .rq-opt:focus{border-color:var(--accent);outline:none}.rq .rq-opt.rec{border-color:var(--accent)}
+.rq h3{margin:8px 0 6px;font-size:17px}.rq .tag.gray{background:var(--card2);color:var(--muted)}
+.rq .rq-file{display:flex;gap:10px;align-items:center;background:var(--card2);border-radius:10px;padding:10px 12px;margin:6px 0}
+.rq .rq-pick{border:2px solid var(--accent)}
 .setup{position:fixed;inset:0;z-index:30;background:var(--bg);overflow:auto;padding:22px 16px}
 .su-box{max-width:1000px;margin:0 auto;background:var(--card2);background:var(--bg);border:1px solid var(--line);border-radius:18px;min-height:calc(100vh - 44px);display:flex;flex-direction:column;overflow:hidden}
 .su-bar{display:flex;align-items:center;gap:10px;padding:14px 22px;border-bottom:1px solid var(--line);background:var(--head)}
@@ -804,11 +809,11 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
         if (s.length < 70 && !/^\d/.test(s)) { if (IN_WORDS.test(s)) section = 1; else if (OUT_WORDS.test(s)) section = -1; }
         continue;
       }
-      const dm = s.match(/^(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|[A-Za-z]{3}\.? \d{1,2})\s+(.*)$/);
+      const dm = s.match(/^(\d{1,2}[\/-]\d{1,2}(?:[\/-]\d{2,4})?|[A-Za-z]{3}\.? \d{1,2})\s+(.*)$/);
       if (!dm) continue;
       const am = dm[2].match(AMT); if (!am) continue;
       let desc = dm[2].slice(0, am.index).trim();
-      desc = desc.replace(/^(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|[A-Za-z]{3}\.? \d{1,2})\s+/, "");   // a second (posting) date
+      desc = desc.replace(/^(\d{1,2}[\/-]\d{1,2}(?:[\/-]\d{2,4})?|[A-Za-z]{3}\.? \d{1,2})\s+/, "");   // a second (posting) date
       desc = desc.replace(/\s+-?\$?[\d,]+\.\d{2}$/, "").trim();                         // a running balance before the amount
       if (!/[A-Za-z]{2}/.test(desc)) continue;
       let date = parseDate(dm[1], false, year);
@@ -820,7 +825,7 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
         if (isCard) amt = /PAYMENT|THANK YOU|CREDIT|REFUND|RETURN/i.test(desc) || section === 1 ? Math.abs(amt) : -Math.abs(amt);
         else amt = section === 1 || (section === 0 && /DEPOSIT|PAYROLL|DIR DEP|REFUND|INTEREST|TRANSFER FROM|ZELLE (PAYMENT )?FROM/i.test(desc)) ? Math.abs(amt) : -Math.abs(amt);
       } else if (isCard) amt = -amt;   // cards print credits with a minus
-      txns.push({ date, raw: desc, amount: amt, yearGiven: /\d\/\d{1,2}\/\d/.test(dm[1]) });
+      txns.push({ date, raw: desc, amount: amt, yearGiven: /\d[\/-]\d{1,2}[\/-]\d/.test(dm[1]) });
     }
     if (txns.length < 3) throw new Error("This statement layout isn't supported yet.");
     // a December-to-January statement: the late-year months belong to the year before
@@ -838,6 +843,98 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
     }
     txns.sort((a, b) => a.date.localeCompare(b.date));
     return { kind, account, start: txns[0].date, end: txns[txns.length - 1].date, txns, checks: {}, ok: true, unverified: true, balance: null };
+  }
+
+  // ---------------------------------------------------------------- Columbia Bank (formerly Umpqua) checking and savings
+  // Layout: "Last/This statement date M/D/YY", sections "deposits and additions", "withdrawals and deductions", "checks",
+  // "daily balances"; rows "MM-DD description $amount" (deductions printed "-$"), descriptions can wrap onto the next line.
+  function isColumbia(pages) {
+    const t = pages.flat().join("\n");
+    return /^deposits and additions$/im.test(t) && /^withdrawals and deductions$/im.test(t) && /statement date/i.test(t);
+  }
+  function columbiaStatement(pages) {
+    const lines = pages.flat().map(s => s.trim()).filter(Boolean), text = lines.join("\n");
+    const M = "(-?\\$?[\\d,]+\\.\\d{2})";
+    const grab = re => { const m = text.match(re); return m ? parseAmount(m[1]) : null; };
+    const sd = [...text.matchAll(/statement date\s+(\d{1,2}\/\d{1,2}\/\d{2,4})/gi)].map(m => parseDate(m[1])).filter(Boolean).sort();
+    let end = sd[sd.length - 1] || null;
+    if (!end) { const lm = text.match(/([A-Z][a-z]+ \d{1,2}, \d{4})\s+Page:/); if (lm) end = parseDate(lm[1]); }
+    if (!end) throw new Error("Couldn't find the statement date.");
+    const endY = +end.slice(0, 4), endM = +end.slice(5, 7);
+    const dayAfter = d => { const x = new Date(d + "T12:00:00Z"); x.setUTCDate(x.getUTCDate() + 1); return x.toISOString().slice(0, 10); };
+    const last4 = (text.match(/Account number\s+\S*?(\d{4})\b/i) || [])[1] || "0000";
+    const head = lines.slice(0, 15).join(" ");
+    const kind = /savings|money market/i.test(head) && !/checking/i.test(head) ? "Savings" : "Checking";
+    const account = `${kind} ..${last4}`;
+    const beg = grab(new RegExp("Beginning balance\\s+" + M, "i")), endBal = grab(new RegExp("Ending balance\\s+" + M, "i"));
+    const interest = grab(new RegExp("Interest earned\\s+" + M, "i")) || 0;
+    const totals = {}, sums = { additions: 0, deductions: 0, checks: 0 }, txns = [];
+    const dateOf = (mm, dd) => `${+mm > endM ? endY - 1 : endY}-${mm}-${dd}`;
+    let sec = null, cur = null, pending = null;
+    const add = (mm, dd, desc, amt) => {
+      amt = sec === "additions" ? Math.abs(amt) : -Math.abs(amt);
+      cur = { date: dateOf(mm, dd), account, raw: desc.trim(), amount: amt }; txns.push(cur); sums[sec] += amt;
+    };
+    for (const s of lines) {
+      if (/^deposits and additions$/i.test(s)) { sec = "additions"; cur = pending = null; continue; }
+      if (/^withdrawals and deductions$/i.test(s)) { sec = "deductions"; cur = pending = null; continue; }
+      if (/^checks$/i.test(s)) { sec = "checks"; cur = pending = null; continue; }
+      if (/^daily balances|fee summary|^in case of errors/i.test(s)) { sec = cur = pending = null; continue; }
+      const mt = s.match(new RegExp("^Total (Additions|Deductions|Checks Paid):?\\s+" + M + "$", "i"));
+      if (mt) { totals[mt[1].toLowerCase().startsWith("checks") ? "checks" : mt[1].toLowerCase()] = parseAmount(mt[2]); sec = cur = pending = null; continue; }
+      if (!sec || /Page:\s*\d+ of \d+|^MEMBER\b|^\d+$|^Date Description Amount$|^Check #|^\(\*/i.test(s)) { if (/Page:|^MEMBER\b|^\d+$/i.test(s)) cur = null; continue; }
+      if (sec === "checks") {
+        for (const m of s.matchAll(/(\d{2,})\s*[*A-Z]?\s+(-?\$?[\d,]+\.\d{2})\s+(\d{2})-(\d{2})/g)) {
+          const amt = -Math.abs(parseAmount(m[2]));
+          txns.push({ date: dateOf(m[3], m[4]), account, raw: `CHECK ${m[1]}`, amount: amt }); sums.checks += amt;
+        }
+        continue;
+      }
+      const md = s.match(/^(\d{2})-(\d{2})\s+(.*)$/);
+      if (md) {
+        const ma = md[3].match(new RegExp("\\s" + M + "$"));
+        if (ma) { pending = null; add(md[1], md[2], md[3].slice(0, ma.index), parseAmount(ma[1])); }
+        else { cur = null; pending = [md[1], md[2], md[3]]; }
+        continue;
+      }
+      if (pending) {
+        const ma = s.match(new RegExp("(?:^|\\s)" + M + "$"));
+        if (ma) { add(pending[0], pending[1], pending[2] + " " + s.slice(0, ma.index), parseAmount(ma[1])); pending = null; }
+        else pending[2] += " " + s;
+        continue;
+      }
+      if (cur) cur.raw += " " + s;   // description wrapped onto the next line
+    }
+    if (!txns.length) throw new Error("No transactions found.");
+    const r2 = x => Math.round(x * 100) / 100;
+    const checks = {};
+    for (const k in totals) checks[k] = [r2(sums[k]), totals[k]];
+    if (beg != null && endBal != null) {
+      let calc = r2(beg + (totals.additions ?? sums.additions) + (totals.deductions ?? sums.deductions) + (totals.checks ?? sums.checks));
+      if (Math.abs(calc - endBal) >= 0.005 && interest && Math.abs(calc + interest - endBal) < 0.005) {
+        // interest printed in the summary only: add it as its own transaction
+        txns.push({ date: end, account, raw: "INTEREST EARNED", amount: interest }); calc = r2(calc + interest);
+      }
+      checks.balance = [calc, endBal];
+    }
+    const seen = {};
+    txns.sort((a, b) => a.date.localeCompare(b.date));
+    for (const t of txns) {
+      t.raw = t.raw.replace(/\s+/g, " ").trim();
+      // "POS purchase terminal 1234 FRED MEYER #345 PORTLAND OR" → "FRED MEYER #345 PORTLAND OR" (the full text stays in raw for rules)
+      const short = t.raw.replace(/^[A-Z0-9]{3} (purchase|debit|credit|deposit) /i, "").replace(/^(terminal|merchant|card|pos|trace|id)\s+\S*\d\S*\s+/i, "");
+      t.desc = root.Core ? root.Core.cleanDesc(short || t.raw) : (short || t.raw);
+      const base = `${account}|${t.date}|${t.amount.toFixed(2)}`; seen[base] = (seen[base] || 0) + 1; t.key = `${base}|${seen[base]}`;
+    }
+    const ok = Object.values(checks).every(([got, want]) => Math.abs(got - want) < 0.005);
+    return { kind, account, bank: "Columbia Bank", start: sd.length > 1 ? dayAfter(sd[0]) : txns[0].date, end, txns, checks, ok, balance: endBal };
+  }
+  /** Banks with a dedicated reader: Bank of America (in Core), then Columbia Bank. Throws "does not look like…" otherwise. */
+  function knownStatement(pages) {
+    try { return root.Core.parseStatement(pages); }
+    catch (e) { if (!/does not look like/i.test(e.message)) throw e; }
+    if (isColumbia(pages)) return columbiaStatement(pages);
+    throw new Error("This does not look like a statement from a bank with its own reader.");
   }
 
   // ---------------------------------------------------------------- privacy-safe layout file
@@ -871,7 +968,7 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
     };
   }
 
-  const Imp = { nearDupFinder, parseCSV, parseAmount, parseDate, looksDate, guessMapping, applyMapping, genericStatement, layoutFile };
+  const Imp = { isColumbia, columbiaStatement, knownStatement, nearDupFinder, parseCSV, parseAmount, parseDate, looksDate, guessMapping, applyMapping, genericStatement, layoutFile };
   if (typeof module !== "undefined") module.exports = Imp; else root.Imp = Imp;
 })(typeof window !== "undefined" ? window : globalThis);
 </script>
@@ -884,9 +981,11 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
   const DEF = JSON.parse($("defaults").textContent);
   Core.setPlaces(DEF.states, DEF.cities);
   const STORE = "mymoney.v1";
-  const VERSION = "1.0";
+  const VERSION = "1.1";
   // banks with a dedicated, totals-checked PDF reader, and the version that added each (used to tell people their requested bank arrived)
-  const BANKS = [{ name: "Bank of America", aka: ["BofA", "BOA", "Bank of America"], kinds: "checking, savings and credit card", since: "1.0" }];
+  const BANKS = [{ name: "Bank of America", aka: ["BofA", "BOA", "Bank of America"], kinds: "checking, savings and credit card", since: "1.0" },
+    { name: "Columbia Bank", aka: ["Columbia", "Columbia Bank", "Umpqua", "Umpqua Bank"], kinds: "checking and savings", since: "1.1" }];
+  const SEND_URL = window.BD_SEND_URL || "https://script.google.com/macros/s/AKfycbzUL0pxclF5KVyGLd5_y9_sLwdkpHP64YKbgmpLKsm5aOE-9AmGzHSebDIX0tFLHRMx/exec";   // Google Apps Script web app that receives "help add my bank" requests (one-click send)
   const UPDATE_PAGE = "https://budgetdrop.github.io/updates.html";   // public "latest version" page; the Check for updates button appears once this is set
   const TIER = window.BD_TIER || "complete", STARTER = TIER === "starter", COMPLETE = TIER === "complete";   // shared and sinking accounts are Complete   // one codebase, three versions
   const SPEND_TYPES = new Set(["Fixed", "Essential", "Discretionary", "Savings", "Review"]);
@@ -1177,10 +1276,10 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
   async function readPdf(file) {
     const pages = await readPdfPages(file);
     if (!pages.flat().join("").trim()) { const e = new Error("This PDF has no readable text (it may be a scanned picture). Try the CSV download from your bank instead."); throw e; }
-    try { return Core.parseStatement(pages); }
+    try { return Imp.knownStatement(pages); }
     catch (e) {
       if (!/does not look like/i.test(e.message)) throw e;
-      // not a Bank of America statement: try the general reader
+      // no dedicated reader for this bank: try the general reader
       try { const st = Imp.genericStatement(pages); st.fuzzy = true; return st; }
       catch (e2) { const u = new Error("unsupported"); u.unsupported = true; u.pages = pages; throw u; }
     }
@@ -1206,41 +1305,40 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
     const unsupported = [];
     for (let i = 0; i < files.length; i++) {
       r.textContent = `Reading ${files[i].name} (${i + 1} of ${files.length})…`;
-      try {
-        if (STARTER) {
-          const pages = await readPdfPages(files[i]); let known = false;
-          try { Core.parseStatement(pages); known = true; } catch (e) {}
-          unsupported.push([files[i].name, pages, known, files[i]]); continue;
-        }   // Starter reads CSV; a PDF can still be sent in to help add the bank
-        const st = await readPdf(files[i]); st.file = files[i].name; stmts.push(st);
-      }
-      catch (e) { if (e.unsupported) unsupported.push([files[i].name, e.pages, false, files[i]]); else problems.push(`${files[i].name}: ${e.message || e}`); }
+      try { const st = await readPdf(files[i]); st.file = files[i].name; stmts.push(st); }
+      catch (e) { if (e.unsupported) unsupported.push({ name: files[i].name, file: files[i] }); else problems.push(`${files[i].name}: ${e.message || e}`); }
     }
     for (const f of csvs) {
       r.textContent = `Checking the columns in ${f.name}…`;
       try { const st = await csvDialog(f); if (st) stmts.push(st); }
       catch (e) { problems.push(`${f.name}: ${e.message || e}`); }
     }
-    r.classList.toggle("hide", !problems.length && !unsupported.length);
-    r.innerHTML = (problems.length ? "<b>Could not read:</b><br>" + problems.map(esc).join("<br>") : "") + (unsupported.length ? unsupportedHtml(unsupported) : "");
-    r.querySelectorAll(".u-layout").forEach(b => b.onclick = () => window.__bankRequest(unsupported.filter(x => !x[2])[+b.dataset.i][3]));
+    lastUnreadable = [];
+    if (unsupported.length) {
+      // a statement BudgetDrop can't read: go straight to "What happened" with those files loaded
+      r.textContent = "";
+      const outcome = await new Promise(res => window.__bankRequest(null, o => res(o), { failed: unsupported, otherOk: stmts.length, otherReview: stmts.length > 0 }));
+      lastUnreadable = unsupported.map(u => ({ name: u.name, outcome }));
+    }
+    r.classList.toggle("hide", !problems.length && !lastUnreadable.length);
+    r.innerHTML = (problems.length ? "<b>Could not read:</b><br>" + problems.map(esc).join("<br>") : "") + unreadableHtml(lastUnreadable);
+    const again = r.querySelector(".u-again"); if (again) again.onclick = () => window.__bankRequest(null, null, { failed: unsupported });
     if (!stmts.length) return;
     buildPending(stmts);
   }
+  let lastUnreadable = [];
+  const OUTCOME = { sent: "✓ Bank request sent. We'll email you when it's added. Meanwhile, a CSV from your bank works today.",
+    csv: "Use a CSV from your bank instead: on its website, open the account's Activity page → Download or Export → CSV, and drop it here.",
+    later: "Skipped for now. Use a CSV from your bank instead, or help add your bank any time from Settings → Bank requests.",
+    closed: "Nothing was imported from it. Use a CSV from your bank instead, or help add your bank." };
+  function unreadableHtml(list) {
+    if (!list.length) return "";
+    return `<div style="margin-top:${list.length ? 4 : 0}px">${list.map(u => `<div><b>${esc(u.name)}</b> couldn't be read. ${esc(OUTCOME[u.outcome] || OUTCOME.closed)}</div>`).join("")}</div>
+      ${list[0].outcome !== "sent" ? `<div class="btns" style="justify-content:flex-start"><button class="btn main u-again">Help add my bank</button></div>` : ""}`;
+  }
 
   const SUPPORT = "BudgetDrop.Support@gmail.com";
-  function unsupportedHtml(list) {
-    if (STARTER && list.every(x => x[2])) return `<div><b>BudgetDrop Starter reads CSV files, not PDF statements:</b> ${list.map(([n]) => esc(n)).join(", ")}</div>
-      <div style="margin-top:6px">BudgetDrop Plus already reads ${list.length > 1 ? "these statements" : "this statement"}. With Starter, download the same months as a CSV instead: on your bank's website, open the account's <i>Activity</i> or <i>Transactions</i> page and look for <i>Download</i> or <i>Export</i>.</div>`;
-    list = list.filter(x => !x[2]);
-    return (STARTER ? `<div><b>BudgetDrop Starter reads CSV files, not PDF statements:</b> ${list.map(([n]) => esc(n)).join(", ")}</div>
-      <div style="margin-top:6px">PDF reading is part of BudgetDrop Plus. With Starter you have two options:</div>`
-      : `<div style="margin-top:${list.length ? 8 : 0}px"><b>BudgetDrop can't read ${list.length > 1 ? "these statements" : "this statement"} yet:</b> ${list.map(([n]) => esc(n)).join(", ")}</div>
-      <div style="margin-top:6px">Every bank lays out its statements a little differently, and this layout is new to BudgetDrop. Two ways forward:</div>`) + `
-      <div style="margin-top:6px"><b>1. Use a CSV file instead (works today).</b> On your bank's website, open the account's <i>Activity</i> or <i>Transactions</i> page and look for <i>Download</i> or <i>Export</i>. Pick CSV (sometimes called "Excel format") and drop that file here.</div>
-      <div style="margin-top:6px"><b>2. Help add your bank${STARTER ? " to the PDF reader" : ""}.</b> BudgetDrop makes a scrambled copy of the statement's layout and writes the email to <b>${SUPPORT}</b> for you. Banks are added case by case in free updates. The layout file is safe to send: every name, number and description is replaced with X's and 9's, so only the bank's headings and the shape of the page remain. Open it in Notepad first if you'd like to check.</div>
-      <div class="btns" style="justify-content:flex-start">${list.map(([n], i) => `<button class="btn main u-layout" data-i="${i}">Help add this bank${list.length > 1 ? " · " + esc(n) : ""}</button>`).join("")}</div>`;
-  }
+
 
   // ---------------------------------------------------------------- CSV: check the columns, pick the account
   const ROLE_NAMES = { ignore: "Skip", date: "Date", desc: "Description", amount: "Amount", debit: "Money out", credit: "Money in" };
@@ -1751,7 +1849,7 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
   const verNewer = (a, b) => { const x = String(a).split(".").map(Number), y = String(b || "0").split(".").map(Number); for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); } return false; };
   function renderAbout() {
     $("s-version").textContent = VERSION;
-    $("s-banks").innerHTML = `${STARTER ? "" : `PDF statements: ${BANKS.map(b => `<b>${esc(b.name)}</b> (${b.kinds})`).join(", ")}, checked against the bank's totals. Other banks' PDFs are read with the general reader.<br>`}CSV files: <b>any bank</b>.`;
+    $("s-banks").innerHTML = `PDF statements: ${BANKS.map(b => `<b>${esc(b.name)}</b> (${b.kinds})`).join(", ")}, checked against the bank's totals. Other banks' PDFs are read with the general reader.<br>CSV files: <b>any bank</b>.`;
     $("s-updates").classList.toggle("hide", !UPDATE_PAGE); if (UPDATE_PAGE) $("s-updates").href = UPDATE_PAGE;
     $("s-subscribe").href = `mailto:${SUPPORT}?subject=${encodeURIComponent("Subscribe to BudgetDrop updates")}&body=${encodeURIComponent("Please email me when BudgetDrop adds banks or features.\n\n(Version " + VERSION + ", " + TIER + ")")}`;
     const rq = S.bankRequests || [];
@@ -1851,7 +1949,7 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
     $("f-msg").textContent = "In this browser, saving downloads BudgetDrop data.json. Keep it in your BudgetDrop folder and open it here next time.";
     saveState();
   }
-  window.__app = { VERSION, BANKS, pdfLib, renderSettings, TIER, STARTER, COMPLETE, backupNow, applyTheme, acctName, get pending() { return !!P; }, accountsList, wireGroups, balanceHistory, groupOf, GROUP_COLORS, get S() { return S; }, set S(v) { S = v; normalize(); applyTheme(); saveState(); }, freshState, handleFiles, show, downloadData, openViaInput, FS_OK, createFile, openFile, flows, save, toast, esc, money, money0, fmtDate, effCat, catType, catColor, isShared,
+  window.__app = { VERSION, BANKS, SEND_URL, get dataHandle() { return fileHandle; }, get lastUnreadable() { return lastUnreadable; }, pdfLib, renderSettings, TIER, STARTER, COMPLETE, backupNow, applyTheme, acctName, get pending() { return !!P; }, accountsList, wireGroups, balanceHistory, groupOf, GROUP_COLORS, get S() { return S; }, set S(v) { S = v; normalize(); applyTheme(); saveState(); }, freshState, handleFiles, show, downloadData, openViaInput, FS_OK, createFile, openFile, flows, save, toast, esc, money, money0, fmtDate, effCat, catType, catColor, isShared,
     categoryOptions, newCategory, pickCat, coverageEnd, SPEND_TYPES };
 })();
 </script>
@@ -1868,17 +1966,17 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
     el.innerHTML = `<div style="display:grid;grid-template-columns:1.3fr 1fr;gap:16px" class="welcome-grid">
       <div class="card"><div style="font-size:26px;font-weight:800">Welcome to BudgetDrop 👋</div>
         <div class="muted" style="margin:4px 0 12px">Three quick steps to your first budget. Everything stays on this computer.</div>
-        ${[A.STARTER ? ["Drop in your bank's CSV files", "On your bank's website, open the account's Activity page and look for Download or Export. Every bank offers it."] : ["Drop in your statements", "Use the PDF statements from your bank, or a CSV file you download from any bank."],
-           A.STARTER ? ["Check the columns and pick the account", "BudgetDrop shows what it found in each column. Fix anything it got wrong once, and it remembers next time."] : !A.COMPLETE ? ["Name your accounts", "Give each account a name you'll recognize, like “Everyday checking” or “Rewards card”."] : ["Tell us about your accounts", "Give each account a name, and mark any account you share with someone else, like a kids or household account."],
+        ${[["Drop in your statements", "Use the PDF statements from your bank, or a CSV file you download from any bank."],
+           !A.COMPLETE ? ["Name your accounts", "Give each account a name you'll recognize, like “Everyday checking” or “Rewards card”."] : ["Tell us about your accounts", "Give each account a name, and mark any account you share with someone else, like a kids or household account."],
            ["Sort anything new", "Choose a category for any store BudgetDrop doesn't recognize. You only do this once; it remembers your choice."]]
           .map(([t, d], i) => `<div style="display:flex;gap:12px;margin:12px 0"><b style="flex:none;width:28px;height:28px;border-radius:50%;background:var(--accent);color:#08131a;display:flex;align-items:center;justify-content:center">${i + 1}</b><div><b>${t}</b><br><span class="muted">${d}</span></div></div>`).join("")}
         <label class="drop" id="w-drop" style="margin-top:14px"><input type="file" id="w-files" accept=".pdf,.csv,application/pdf,text/csv" multiple hidden>
-          <b>${A.STARTER ? "Drag your CSV files here, or click to choose them." : "Drag your statement files here, or click to choose them (PDF or CSV)."}</b></label>
+          <b>Drag your statement files here, or click to choose them (PDF or CSV).</b></label>
         <div class="btns" style="justify-content:flex-start"><button class="btn" id="w-demo">Try it with sample data</button><button class="btn" id="w-open">Already set up? Open my data file</button></div>
       </div>
       <div style="display:flex;flex-direction:column;gap:12px">
         <div class="card"><div class="label">Private by design</div><div style="margin-top:6px;line-height:1.8">✓ No bank login<br>✓ No sign-up or subscription<br>✓ Your data never leaves this computer<br>✓ Saves to a file you keep</div></div>
-        <div class="card"><div class="label">Where do I get statements?</div><div class="muted" style="margin-top:6px">${A.STARTER ? "Log in to your bank's website, open the account's “Activity” or “Transactions” page, and look for “Download” or “Export”. Choose CSV (sometimes called “Excel format”)." : "Log in to your bank's website and look for “Statements” to download a PDF, or “Activity” or “Transactions” to download a CSV."} The PDF guide that came with BudgetDrop shows where to find them.</div></div>
+        <div class="card"><div class="label">Where do I get statements?</div><div class="muted" style="margin-top:6px">Log in to your bank's website and look for “Statements” to download a PDF, or “Activity” or “Transactions” to download a CSV. The PDF guide that came with BudgetDrop shows where to find them.</div></div>
         <div class="card"><div class="label">Budget month</div><div style="margin-top:6px">My budget month starts on the
           <select id="w-sd">${Array.from({ length: 28 }, (_, i) => i + 1).map(d => `<option value="${d}"${d === sd ? " selected" : ""}>${d === 1 ? "1st (regular calendar month)" : ord(d)}</option>`).join("")}</select></div>
           <div class="muted" style="font-size:12px;margin-top:4px">Pick another day if you budget from payday to payday.</div></div>
@@ -2030,13 +2128,6 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
       ex(`"Credit Card ..9012" becomes <b>Rewards card</b> everywhere in BudgetDrop.`)];
     HELP.cats[1] = HELP.cats[1].replace(/<p>Shared accounts[^]*?<\/p>/, "");
   }
-  if (window.BD_TIER === "starter") {
-    HELP.import = ["Import", `
-      <p><b>BudgetDrop Starter reads CSV files</b>, which every bank offers: open the account's <i>Activity</i> or <i>Transactions</i> page on your bank's website and look for <i>Download</i> or <i>Export</i>. Choose CSV (sometimes called "Excel format").</p>
-      <p>BudgetDrop shows the columns it found so you can check them, and remembers your choice next time.</p>
-      <p><b>Nothing is added until you press Import.</b> Anything already in your budget is skipped, so it's safe to drop in the same file twice.</p>`,
-      ex(`You import September's CSV, then later one covering August and September. Only August is added: September is recognized and skipped.`)];
-  }
   const panel = document.createElement("div");
   panel.id = "help"; panel.className = "help hide";
   document.body.appendChild(panel);
@@ -2063,7 +2154,7 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
   const ord = d => d + (["th", "st", "nd", "rd"][(d % 10 > 3 || [11, 12, 13].includes(d % 100)) ? 0 : d % 10]);
   const DROP = `<svg width="20" height="24" viewBox="0 0 40 48" aria-hidden="true"><path d="M20 2 C20 2 2 24 2 32 a18 18 0 0 0 36 0 C38 24 20 2 20 2Z" fill="var(--accent)"/><rect x="11" y="30" width="4.5" height="10" rx="1.5" fill="var(--head)"/><rect x="17.8" y="25" width="4.5" height="15" rx="1.5" fill="var(--head)"/><rect x="24.6" y="33" width="4.5" height="7" rx="1.5" fill="var(--head)"/></svg>`;
   const el = document.createElement("div"); el.id = "setup"; el.className = "setup hide"; document.body.appendChild(el);
-  let step = 0, madeFile = false, imported = 0;
+  let step = 0, madeFile = false, imported = 0, notes = [];
   const STEPS = () => ["Welcome", "Your folder", "Budget month", "Statements", ...(A.COMPLETE ? ["Your accounts"] : []), "Backups", "All set"];
 
   function page(name, num) {
@@ -2101,18 +2192,19 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
       case "Statements": return `<div class="su-k">Step ${num}</div><h2 class="su-h">Bring in your first statements</h2>
         <p class="su-lead">Start with the <b>last 2 to 3 months</b> for each account you use: checking, savings and credit cards. More history makes the plan smarter, and you can add more any time.</p>
         ${imported ? `<div class="su-warn" style="border-color:var(--accent);background:var(--soft)"><b>✓ ${imported.toLocaleString()} transactions imported.</b> Add more files below, or press Continue.</div>` : ""}
-        <div class="su-g2" style="margin-top:${imported ? 14 : 0}px"><div>
-          <label class="drop" id="su-drop" style="padding:30px"><input type="file" id="su-files" accept=".pdf,.csv,application/pdf,text/csv" multiple hidden><div style="font-size:28px">⬇</div><b>${S ? "Drop your CSV files here" : "Drop your PDF statements or CSV files here"}</b><br>or click to choose them<br><span class="su-s">Nothing is saved until you press Import.</span></label>
+        ${notes.map(n => `<div class="su-warn" style="margin-top:8px"><b>${esc(n.name)}</b> couldn't be read. ${{ sent: "✓ Bank request sent. We'll email you when it's added. Use a CSV meanwhile if you'd like.", csv: "Use a CSV from your bank instead: drop it in below." }[n.outcome] || "Nothing was imported from it. Drop in a CSV from your bank instead, or help add your bank below."}</div>`).join("")}
+        <div class="su-g2" style="margin-top:${imported || notes.length ? 14 : 0}px"><div>
+          <label class="drop" id="su-drop" style="padding:30px"><input type="file" id="su-files" accept=".pdf,.csv,application/pdf,text/csv" multiple hidden><div style="font-size:28px">⬇</div><b>Drop your PDF statements or CSV files here</b><br>or click to choose them<br><span class="su-s">Nothing is saved until you press Import.</span></label>
           <div class="card" style="margin-top:12px"><div class="muted su-s">After you drop them, BudgetDrop will:</div>
-            <div class="su-c"><i>✓</i><div>${S ? "Show the columns it found, so you can check them" : "Read each statement and check it against the bank's totals"}</div></div>
+            <div class="su-c"><i>✓</i><div>Read each statement and check it against the bank's totals (CSV files: show the columns it found)</div></div>
             <div class="su-c"><i>✓</i><div>Ask which account each file belongs to, once</div></div>
             <div class="su-c"><i>✓</i><div>Ask about any store it doesn't recognize. You pick a category once and it remembers.</div></div></div></div>
         <div class="card"><b class="su-t">Where do I get them?</b><span class="muted su-s">Log in to your bank's website, then:</span>
-          <div class="su-bank">${S ? "" : `<b>PDF</b><span class="muted">Open <b>Statements</b> (sometimes “Statements &amp; Documents”) and download each month.</span>`}
+          <div class="su-bank"><b>PDF</b><span class="muted">Open <b>Statements</b> (sometimes “Statements &amp; Documents”) and download each month.</span>
             <b>CSV</b><span class="muted">Open the account's <b>Activity</b> or <b>Transactions</b> page, choose a date range, then <b>Download</b> or <b>Export</b> → CSV (sometimes called “Excel format”).</span>
-            <b>Which banks?</b><span class="muted">${S ? "CSV files work with any bank." : "Bank of America PDFs are fully checked. Other banks' PDFs are read and flagged for a quick look. CSV files work with any bank."}</span></div>
+            <b>Which banks?</b><span class="muted">${A.BANKS.map(b => b.name).join(" and ")} PDFs are fully checked. Other banks' PDFs are read and flagged for a quick look. CSV files work with any bank. If a PDF can't be read, BudgetDrop walks you through what to do.</span></div>
           <div class="muted su-s" style="margin-top:12px">Save your downloads in the <b>Statements</b> folder so you always know where they are.</div>
-          ${S ? "" : `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)"><b>My bank's PDF isn't working</b><br><span class="muted su-s">Send us a scrambled copy of its layout and we'll add your bank in a free update. Nothing private is sent.</span><div style="margin-top:8px"><button class="btn small" data-req>Help add my bank</button></div></div>`}</div></div>`;
+          ${`<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)"><b>My bank's PDF isn't working</b><br><span class="muted su-s">Send us a scrambled copy of its layout and we'll add your bank in a free update. Nothing private is sent.</span><div style="margin-top:8px"><button class="btn small" data-req>Help add my bank</button></div></div>`}</div></div>`;
       case "Your accounts": { const ac = Object.entries(A.S.accounts);
         return `<div class="su-k">Step ${num}</div><h2 class="su-h">Tell us about your accounts</h2>
         <p class="su-lead">${ac.length ? "BudgetDrop found these accounts in your statements. Give each a name, and mark any that work differently." : "Your accounts appear here after you import statements. You can do this later on the Accounts page."}</p>
@@ -2131,7 +2223,7 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
           <div class="card" style="margin-top:12px"><b class="su-t">What the reminder looks like</b>
             <div class="su-warn" style="margin-top:8px">It's been 32 days since your last backup. <u>Back up now</u> · <u>Later</u></div></div></div></div>`; }
       case "All set": return `<div class="su-hero"><div style="font-size:46px">🎉</div><h2 class="su-h" style="font-size:34px">You're all set</h2>
-        <p class="su-lead" style="margin:0 auto 20px">Here's where to go next.</p>
+        <p class="su-lead" style="margin:0 auto 20px">${notes.some(n => n.outcome === "sent") ? "Your bank request is saved in Settings → Bank requests, and you'll get an email when it's added. " : ""}Here's where to go next.</p>
         <div class="su-g3" style="max-width:780px;width:100%;text-align:left">
           ${(S ? [["📊 Spending by category", "See where your money went, month by month."], ["🏦 Accounts", "Balances and how they've changed."], ["❓ Help", "Every screen has a ? Help button with examples."]]
             : [["📊 Dashboard", "How much is free to spend this month, and your grade."], ["📅 Bill calendar", "Bills BudgetDrop found, and which are paid."], ["❓ Help", "Every screen has a ? Help button with examples."]])
@@ -2168,7 +2260,7 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
   async function importFiles(files) {
     if (!files.length) return;
     before = A.S.txns.length; hide();
-    window.__setupResume = done => { window.__setupResume = null; imported += Math.max(0, A.S.txns.length - before); open(); };
+    window.__setupResume = done => { window.__setupResume = null; imported += Math.max(0, A.S.txns.length - before); notes.push(...(A.lastUnreadable || [])); open(); };
     await A.handleFiles(files);
     if (!A.pending && window.__setupResume) window.__setupResume(false);   // nothing to review (all skipped or unreadable): come straight back
   }
@@ -2190,23 +2282,28 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
   });
   function open() { el.classList.remove("hide"); document.body.style.overflow = "hidden"; render(); el.scrollTop = 0; }
   function hide() { el.classList.add("hide"); document.body.style.overflow = ""; }
-  window.__setup = again => { step = again ? 1 : 0; imported = 0; open(); };
+  window.__setup = again => { step = again ? 1 : 0; imported = 0; notes = []; open(); };
   // first visit: no data yet and setup not finished
   if (window.BD_DEMO) { if (!A.S.demo) window.__loadDemo(); }   // the public demo opens straight into sample data
   else if (!A.S.demo && !A.S.txns.length && !A.S.settings.setupDone) window.__setup(false);
 })();
 </script>
-<script>/* BudgetDrop: "Help add your bank". Turns a statement BudgetDrop cannot read into a scrambled layout file and a ready-to-send email. */
+<script>/* BudgetDrop: "A statement couldn't be read" / "Help add your bank".
+   Opened automatically with the statement(s) BudgetDrop couldn't read, or from Settings with no file.
+   Turns the statement into a scrambled layout file and sends it (one click), or saves it so the customer can send it their own way. */
 (function () {
   "use strict";
-  const SUPPORT = "BudgetDrop.Support@gmail.com", $ = id => document.getElementById(id), A = window.__app;
+  const SUPPORT = "BudgetDrop.Support@gmail.com", UPLOAD_PAGE = "budgetdrop.github.io/send";
+  const $ = id => document.getElementById(id), A = window.__app;
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const pdfLib = () => A.pdfLib();
-  const NAMES = ["Choose a statement", "Check what's sent", "A few details", "Send it", "Done"];
-  const R = { step: 0, file: null, pages: null, items: null, known: null, generic: null, page: 0, bank: "", kind: "Checking", email: "", ok: false, saved: false };
+  const EMAIL_OK = s => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(s || "").trim());
+  const fresh = () => ({ step: 0, failed: null, choice: null, file: null, pages: null, items: null, known: null, generic: null, page: 0,
+    ok: false, savedTo: "", sendState: "", how: "", emailErr: "", copied: false, outcome: "" });
+  const R = Object.assign(fresh(), { bank: "", kind: "Checking", email: "", news: false });
+  const names = () => [R.failed ? "What happened" : "Choose a statement", "Check what's sent", "Your details", "Send it", "Done"];
 
   async function read(file) {
-    const L = await pdfLib(), doc = await L.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+    const L = await A.pdfLib(), doc = await L.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
     const pages = [], items = [];
     for (let p = 1; p <= doc.numPages; p++) {
       const pg = await doc.getPage(p), tc = await pg.getTextContent();
@@ -2219,77 +2316,141 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
   const scrambleLine = l => Imp.layoutFile([[l]], {}).split("\n").pop();
   function layoutText() {
     let t = Imp.layoutFile(R.pages, { app: "BudgetDrop " + A.VERSION + " " + A.TIER }).replace("Bank name (please type it here): ", `Bank name: ${R.bank}\nAccount type: ${R.kind}`);
-    // word positions help build an exact reader for this bank (also scrambled)
     t += "\n\n=== word positions (page, x, y, scrambled text) ===\n" + R.items.map((pg, i) => pg.map(([x, y, s]) => `${i + 1}\t${x}\t${y}\t${scrambleLine(s)}`).join("\n")).join("\n");
     return t;
   }
   const fileName = () => `BudgetDrop layout - ${(R.bank || "my bank").replace(/[\\/:*?"<>|]/g, "")} ${R.kind.toLowerCase()}.txt`;
   const subject = () => `New bank request: ${R.bank} ${R.kind.toLowerCase()}`;
-  const body = () => `Hi BudgetDrop,\n\nPlease add support for ${R.bank} (${R.kind.toLowerCase()} statements).\n\nI've attached the layout file "${fileName()}". Every name, number and description in it has been replaced with X's and 9's.\n\n${R.email ? `Let me know at ${R.email} when it's added.\n\n` : ""}Thanks!`;
+  const body = () => `Hi BudgetDrop,\n\nPlease add support for ${R.bank} (${R.kind.toLowerCase()} statements).\n\nI've attached the layout file "${fileName()}". Every name, number and description in it has been replaced with X's and 9's.\n\nPlease let me know at ${R.email} when it's added.\n\nThanks!`;
+  const many = () => R.failed && R.failed.length > 1;
 
   function page() {
+    if (R.step === 0 && R.failed && R.choice === "csv") return `<div class="k">Use a CSV file</div><h2>Get a CSV file from your bank</h2>
+      <p class="lead">A CSV file is a plain list of your transactions. Every bank offers one, and BudgetDrop reads it today.</p>
+      <div class="card" style="line-height:1.9;max-width:720px">1. Log in to your bank's website on this computer.<br>2. Open the account, then <b>Activity</b> or <b>Transactions</b> (credit unions often call it <b>Account history</b>).<br>3. Choose the same months, then <b>Download</b> or <b>Export</b> → <b>CSV</b> (sometimes called “Excel format”).<br>4. Drop the CSV file into BudgetDrop.</div>`;
+    if (R.step === 0 && R.failed) {
+      const other = R.otherOk ? ` Your other ${R.otherOk > 1 ? "files were" : "file was"} read fine${R.otherReview ? `: you'll check ${R.otherOk > 1 ? "them" : "it"} and press Import next` : ""}.` : "";
+      return `<div class="k">What happened</div><h2>BudgetDrop couldn't read ${many() ? "these statements" : "this statement"} yet</h2>
+      <div class="warn"><b>Why this happens:</b> every bank lays out its statements a little differently, and ${many() ? "these didn't" : "this one didn't"} match well enough to trust the numbers. <b>Nothing from ${many() ? "them" : "it"} was imported.</b>${other}</div>
+      ${R.failed.map(f => `<div class="rq-file">📄 <b>${esc(f.name)}</b></div>`).join("")}
+      <div style="margin:16px 0 8px;font-weight:700">What would you like to do?</div>
+      <div class="rq-opts"><div class="rq-opt rec" data-c="help" tabindex="0"><span class="tag grn">Recommended · 2 minutes</span><h3>Help add my bank</h3><div class="muted s">Send a scrambled copy of ${many() ? "a statement's" : "this statement's"} layout. You'll see exactly what's sent first, and get an email when your bank is added.</div></div>
+        <div class="rq-opt" data-c="csv" tabindex="0"><span class="tag grn">Works today</span><h3>Use a CSV file instead</h3><div class="muted s">Download your transactions as a CSV from your bank's website and drop that in.</div></div>
+        <div class="rq-opt" data-c="later" tabindex="0"><span class="tag gray">Skip</span><h3>Not now</h3><div class="muted s">Go back. You can do this later from Settings → Bank requests.</div></div></div>`;
+    }
     switch (R.step) {
       case 0: return `<div class="k">Step 1</div><h2>Choose a statement from your bank</h2>
         <p class="lead">Pick one PDF statement from the bank BudgetDrop couldn't read. A month with plenty of transactions works best.</p>
         <label class="drop" id="rq-drop"><input type="file" id="rq-pick" accept=".pdf,application/pdf" hidden><div style="font-size:28px">⬇</div><b>Drop a PDF statement here</b><br>or click to choose one<br><span class="s">It's read on this computer only. Nothing is sent yet.</span></label>
         <div id="rq-status" style="margin-top:14px"></div>`;
-      case 1: { const real = R.pages[R.page] || [], scr = real.map(scrambleLine);
-        return `<div class="k">Step 2</div><h2>Check exactly what gets sent</h2>
-        <p class="lead">On the left is your statement as BudgetDrop reads it. On the right is the file you'd send: your bank's headings and the shape of the page stay, and every name, number, amount and description is replaced. <span style="color:var(--accent)">Highlighted</span> words were changed.</p>
+      case 1: { if (!R.pages) return `<div class="muted" style="padding:30px 0">Reading the statement…</div>`; const real = R.pages[R.page] || [], scr = real.map(scrambleLine);
+        return `<div class="k">Step 2${R.file ? " · " + esc(R.file.name) : ""}</div><h2>Check exactly what gets sent</h2>
+        <p class="lead">On the left is your statement as BudgetDrop reads it. On the right is what you'd send: your bank's headings and the shape of the page stay, and every name, number, amount and description is replaced. <span style="color:var(--accent)">Highlighted</span> words were changed.</p>
+        ${many() ? `<div style="margin-bottom:10px">Statement <select id="rq-which" style="width:auto">${R.failed.map((f, i) => `<option value="${i}"${f.file === R.file ? " selected" : ""}>${esc(f.name)}</option>`).join("")}</select> <span class="muted s">One is enough.</span></div>` : ""}
         ${R.pages.length > 1 ? `<div style="margin-bottom:10px">Page <select id="rq-pg" style="width:auto">${R.pages.map((_, i) => `<option value="${i}"${i === R.page ? " selected" : ""}>${i + 1} of ${R.pages.length}</option>`).join("")}</select></div>` : ""}
         <div class="g2"><div><div class="ph">Your statement <span class="tag red">Stays on this computer</span></div><div class="pane" id="rq-pa">${real.map(esc).join("\n")}</div></div>
           <div><div class="ph">What gets sent <span class="tag grn">Scrambled</span></div><div class="pane" id="rq-pb">${scr.map((l, i) => markChanges(real[i], l)).join("\n")}</div></div></div>`; }
-      case 2: return `<div class="k">Step 3</div><h2>A few details</h2>
-        <p class="lead">These go in the email so we know which bank to add.</p>
+      case 2: return `<div class="k">Step 3</div><h2>Your details</h2>
+        <p class="lead">So we know which bank this is, and where to tell you when it's added.</p>
         <div style="max-width:520px">
-          <label class="f" for="rq-bank">Bank name *</label><input type="text" id="rq-bank" value="${esc(R.bank)}" placeholder="e.g. Chase, Wells Fargo, OnPoint Credit Union">
+          <label class="f" for="rq-bank">Bank name *</label><input type="text" id="rq-bank" value="${esc(R.bank)}" placeholder="e.g. Chase, Wells Fargo, OnPoint Community Credit Union">
           <label class="f" for="rq-kind">Account type</label><select id="rq-kind">${["Checking", "Savings", "Credit card", "Other"].map(k => `<option${k === R.kind ? " selected" : ""}>${k}</option>`).join("")}</select>
-          <label class="f" for="rq-email">Your email (optional)</label><input type="email" id="rq-email" value="${esc(R.email)}" placeholder="Only if you'd like a note when your bank is added">
-          <label class="chk"><input type="checkbox" id="rq-ok"${R.ok ? " checked" : ""}><span>I've looked at the preview, and I'm OK sending the scrambled file.</span></label></div>`;
-      case 3: return `<div class="k">Step 4</div><h2>Send it</h2>
-        <p class="lead">Two quick steps. Your email program does the sending, so BudgetDrop never sees or stores anything.</p>
-        <div class="row"><span class="num">1</span><div><b>Save the layout file</b><br><span class="muted s">Saves <code>${esc(fileName())}</code> to your Downloads folder.</span><div style="margin-top:8px"><button class="btn main" id="rq-save">${R.saved ? "✓ Saved · save again" : "Save the layout file"}</button></div></div></div>
-        <div class="row"><span class="num">2</span><div><b>Email it to us, with the file attached</b><br><span class="muted s">The email is written for you. Just attach the file from your Downloads folder and press Send.</span>
-          <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
-            <a class="btn${R.saved ? " main" : ""}" id="rq-mail" href="mailto:${SUPPORT}?subject=${encodeURIComponent(subject())}&body=${encodeURIComponent(body())}">Open my email app</a>
-            <a class="btn" target="_blank" rel="noopener" href="https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(SUPPORT)}&su=${encodeURIComponent(subject())}&body=${encodeURIComponent(body())}">Open Gmail instead</a>
-            <button class="btn" id="rq-copy">Copy the email address</button></div>
-          <details style="margin-top:10px"><summary class="muted s" style="cursor:pointer">See the email</summary><div class="card" style="margin-top:8px;white-space:pre-wrap;font-size:13px"><b>To:</b> ${SUPPORT}\n<b>Subject:</b> ${esc(subject())}\n\n${esc(body())}</div></details></div></div>`;
-      case 4: return `<div style="text-align:center;padding:30px 0"><div style="font-size:44px">📬</div><h2>Thanks for helping add ${esc(R.bank || "your bank")}!</h2>
-        <p class="lead" style="margin:0 auto 18px">Banks are added case by case in free updates. ${R.email ? "We'll email you when yours is ready." : "Watch for the next update."} BudgetDrop keeps a note in Settings → Bank requests: <b>${esc(R.bank)} ${esc(R.kind.toLowerCase())} · requested ${new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" })}</b>.</p>
+          <label class="f" for="rq-email">Your email address *</label><input type="email" id="rq-email" value="${esc(R.email)}" placeholder="you@example.com" autocomplete="email">
+          <div class="muted s" style="margin-top:6px">📬 When your bank is added, the free update is emailed to this address. Any email works: Yahoo, Outlook, Gmail, anything.</div>
+          <div id="rq-err" class="s" style="color:var(--warn);margin-top:6px;min-height:20px">${esc(R.emailErr)}</div>
+          <label class="chk" style="margin-top:2px"><input type="checkbox" id="rq-news"${R.news ? " checked" : ""}><span class="s">Also send me news about new BudgetDrop features (optional)</span></label></div>`;
+      case 3: {
+        const sendCard = A.SEND_URL ? `<div class="card rq-pick"><span class="tag grn">Easiest · one click</span><h3>Send it to BudgetDrop</h3>
+            <div class="muted s" style="margin-bottom:10px">Sends only the scrambled layout you checked, the bank name, your email and your BudgetDrop version. Needs the internet for a moment.</div>
+            <div class="rq-file">📄 <b>${esc(fileName())}</b><span class="muted s" style="margin-left:auto">${esc(R.email)}</span></div>
+            ${R.sendState === "fail" ? `<div class="warn" style="margin:8px 0">Couldn't reach the internet, so nothing was sent. Check your connection and try again, or save the file and send it later.</div>` : ""}
+            <button class="btn main su-big" id="rq-send"${R.sendState === "sending" ? " disabled" : ""}>${R.sendState === "sending" ? "Sending…" : R.sendState === "fail" ? "Try again" : "Send it to BudgetDrop"}</button></div>` : "";
+        const saveCard = `<div class="card"><span class="tag gray">${A.SEND_URL ? "Or do it yourself" : "Two quick steps"}</span><h3>Save the file and send it your way</h3>
+            <div class="muted s" style="margin-bottom:10px">${A.SEND_URL ? "Handy with no internet, or if you'd rather send it yourself." : "Save the layout file, then upload or email it."}</div>
+            ${R.savedTo ? `<div class="info" style="margin:0 0 10px"><b>✓ Saved</b><br><span class="s">${esc(R.savedTo)}</span></div>
+              <div class="s" style="line-height:1.9">Then either:<br>• Upload it at <b>${UPLOAD_PAGE}</b>, or<br>• Email it from any email account to <b>${SUPPORT}</b>
+                <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" id="rq-copy">${R.copied ? "✓ Copied" : "Copy the address"}</button><a class="btn small" href="mailto:${SUPPORT}?subject=${encodeURIComponent(subject())}&body=${encodeURIComponent(body())}">Open my email app</a> <button class="btn small" id="rq-save">Save again</button></div></div>`
+            : `<button class="btn${A.SEND_URL ? "" : " main"}" id="rq-save">Save the layout file…</button><div class="muted s" style="margin-top:8px">${A.FS_OK ? "You choose the folder." : "It saves to your Downloads folder."}</div>`}</div>`;
+        return `<div class="k">Step 4</div><h2>Send it</h2><div class="${A.SEND_URL ? "g2" : ""}" style="${A.SEND_URL ? "" : "max-width:620px"}">${sendCard}${saveCard}</div>`; }
+      case 4: return `<div style="text-align:center;padding:30px 0"><div style="font-size:44px">📬</div><h2>${R.how === "auto" ? "Sent! Thanks for helping add your bank" : `Thanks for helping add ${esc(R.bank || "your bank")}!`}</h2>
+        <p class="lead" style="margin:0 auto 18px">When <b>${esc(R.bank)}</b> is added, the free update will be emailed to <b>${esc(R.email)}</b>. This request is saved in Settings → Bank requests.</p>
         <div class="card" style="max-width:620px;margin:0 auto;text-align:left"><b>In the meantime, use CSV files</b><br><span class="muted s">They work with any bank today. On ${esc(R.bank || "your bank")}'s website, open the account's <b>Activity</b> or <b>Transactions</b> page, choose a date range, then <b>Download</b> or <b>Export</b> → CSV. Drop that file into BudgetDrop.</span></div>
-        <div style="margin-top:18px"><button class="btn main" id="rq-done">Done</button> <button class="btn" id="rq-again">Help with another statement</button></div></div>`;
+        <div style="margin-top:18px"><button class="btn main" id="rq-done">${R.failed ? "Continue →" : "Done"}</button>${R.failed ? "" : ` <button class="btn" id="rq-again">Help with another statement</button>`}</div></div>`;
     }
   }
-  // highlight words that were scrambled
   function markChanges(orig, scr) {
     const a = (orig || "").split(/(\s+)/), b = scr.split(/(\s+)/);
     return b.map((t, i) => /\s/.test(t) || t === a[i] ? esc(t) : `<span class="chg">${esc(t)}</span>`).join("");
   }
   function statusHtml() {
     if (!R.pages) return "";
-    const n = R.pages.flat().length;
     if (!R.pages.flat().join("").trim()) return `<div class="warn"><b>This PDF has no readable text.</b> It's probably a scanned picture, so BudgetDrop can't learn from it. Please use the CSV download from your bank instead.</div>`;
-    let h = `<div class="card"><b>📄 ${esc(R.file.name)}</b><div class="stat"><div><span class="muted s">Pages</span><b>${R.pages.length}</b></div><div><span class="muted s">Lines read</span><b>${n}</b></div></div></div>`;
+    let h = `<div class="card"><b>📄 ${esc(R.file.name)}</b><div class="stat"><div><span class="muted s">Pages</span><b>${R.pages.length}</b></div><div><span class="muted s">Lines read</span><b>${R.pages.flat().length}</b></div></div></div>`;
     if (R.known) h += `<div class="info" style="margin-top:12px"><b>Good news: BudgetDrop already reads this statement</b> (${esc(R.known.account)}, ${R.known.txns.length} transactions, totals check out). You don't need to send it, but you can continue to see how the request works.</div>`;
     else if (R.generic) h += `<div class="info" style="margin-top:12px"><b>BudgetDrop's general reader found ${R.generic.txns.length} transactions</b>, but it can't double-check them against your bank's totals. Sending the layout lets us build an exact, checked reader for this bank.</div>`;
     else h += `<div class="warn" style="margin-top:12px"><b>BudgetDrop can't read this layout yet.</b> Continue to send us a scrambled copy so we can add it.</div>`;
     return h;
   }
   const ov = document.createElement("div"); ov.id = "bankreq"; ov.className = "setup hide";
-  ov.innerHTML = `<div class="su-box rq"><div class="su-bar"><div class="su-logo"><svg width="20" height="24" viewBox="0 0 40 48"><path d="M20 2 C20 2 2 24 2 32 a18 18 0 0 0 36 0 C38 24 20 2 20 2Z" fill="var(--accent)"/><rect x="11" y="30" width="4.5" height="10" rx="1.5" fill="var(--head)"/><rect x="17.8" y="25" width="4.5" height="15" rx="1.5" fill="var(--head)"/><rect x="24.6" y="33" width="4.5" height="7" rx="1.5" fill="var(--head)"/></svg><span>Help add your bank</span></div><button class="su-link" id="rq-close" style="margin-left:auto">Close</button></div>
+  ov.innerHTML = `<div class="su-box rq"><div class="su-bar"><div class="su-logo"><svg width="20" height="24" viewBox="0 0 40 48"><path d="M20 2 C20 2 2 24 2 32 a18 18 0 0 0 36 0 C38 24 20 2 20 2Z" fill="var(--accent)"/><rect x="11" y="30" width="4.5" height="10" rx="1.5" fill="var(--head)"/><rect x="17.8" y="25" width="4.5" height="15" rx="1.5" fill="var(--head)"/><rect x="24.6" y="33" width="4.5" height="7" rx="1.5" fill="var(--head)"/></svg><span id="rq-title">Help add your bank</span></div><button class="su-link" id="rq-close" style="margin-left:auto">Close</button></div>
     <div class="su-prog" id="rq-prog"></div><div class="su-steps" id="rq-steps"></div><div class="su-body" id="rq-body"></div><div class="su-foot" id="rq-foot"></div></div>`;
   document.body.appendChild(ov);
   let onClose = null;
-  function close() { ov.classList.add("hide"); document.body.style.overflow = ""; const f = onClose; onClose = null; if (f) f(); }
-  ov.querySelector("#rq-close").onclick = close;
+  function close(outcome) {
+    if (outcome) R.outcome = outcome;
+    ov.classList.add("hide"); document.body.style.overflow = "";
+    const f = onClose; onClose = null; if (f) f(R.outcome || "closed", R);
+  }
+  ov.querySelector("#rq-close").onclick = () => close(R.outcome || (R.step === 4 ? "sent" : "closed"));
+  function record() {
+    const S = A.S; S.bankRequests = S.bankRequests || [];
+    S.bankRequests.push({ bank: R.bank.trim(), kind: R.kind, email: R.email.trim(), date: new Date().toISOString().slice(0, 10), ver: A.VERSION, sent: R.how === "auto" });
+    A.save(); R.outcome = "sent";
+  }
   function render() {
-    $("rq-prog").innerHTML = NAMES.map((_, i) => `<div class="${i < R.step ? "done" : i === R.step ? "now" : ""}"></div>`).join("");
-    $("rq-steps").innerHTML = NAMES.map((n, i) => `<span class="${i === R.step ? "on" : ""}">${n}</span>`).join("");
+    $("rq-title").textContent = R.failed ? (many() ? "Some statements couldn't be read" : "A statement couldn't be read") : "Help add your bank";
+    $("rq-close").textContent = R.failed ? "Back" : "Close";
+    const N = names();
+    $("rq-prog").innerHTML = N.map((_, i) => `<div class="${i < R.step ? "done" : i === R.step ? "now" : ""}"></div>`).join("");
+    $("rq-steps").innerHTML = N.map((n, i) => `<span class="${i === R.step ? "on" : ""}">${n}</span>`).join("");
     $("rq-body").innerHTML = page();
-    const canNext = [!!(R.pages && R.pages.flat().join("").trim()), true, !!(R.bank.trim() && R.ok), true, false][R.step];
-    $("rq-foot").innerHTML = R.step === 4 ? "" : `<button class="btn" id="rq-back"${R.step === 0 ? " disabled" : ""}>← Back</button><button class="btn main" id="rq-next"${canNext ? "" : " disabled"}>${R.step === 3 ? "I've sent it" : "Continue →"}</button>`;
+    let foot;
+    if (R.step === 0 && R.failed) foot = R.choice === "csv" ? `<button class="btn" id="rq-b0">← Back</button><button class="btn main" id="rq-csvdone">OK, I'll get a CSV</button>` : `<span></span><span class="muted s">Pick an option above</span>`;
+    else if (R.step === 4) foot = "";
+    else if (R.step === 3) foot = `<button class="btn" id="rq-back">← Back</button>${R.savedTo ? `<button class="btn main" id="rq-manual">I've sent it</button>` : "<span></span>"}`;
+    else { const canNext = [!!(R.pages && R.pages.flat().join("").trim()), true, true][R.step];
+      foot = `<button class="btn" id="rq-back"${R.step === 0 ? " disabled" : ""}>← Back</button><button class="btn main" id="rq-next"${canNext ? "" : " disabled"}>Continue →</button>`; }
+    $("rq-foot").innerHTML = foot;
     wire();
+  }
+  function keepFields() {
+    if ($("rq-bank")) R.bank = $("rq-bank").value; if ($("rq-email")) R.email = $("rq-email").value.trim();
+    if ($("rq-kind")) R.kind = $("rq-kind").value; if ($("rq-news")) R.news = $("rq-news").checked;
+  }
+  async function saveLayout() {
+    const text = layoutText(), name = fileName();
+    if (A.FS_OK) {
+      try {
+        const opts = { suggestedName: name, types: [{ description: "Text file", accept: { "text/plain": [".txt"] } }] };
+        if (A.dataHandle) opts.startIn = A.dataHandle;   // start in the BudgetDrop folder, next to the data file
+        const h = await window.showSaveFilePicker(opts);
+        const w = await h.createWritable(); await w.write(text); await w.close();
+        R.savedTo = `Saved as “${h.name}” in the folder you chose.`; render(); return;
+      } catch (e) { if (e && e.name === "AbortError") return; }
+    }
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type: "text/plain" })); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    R.savedTo = `Saved to your Downloads folder as “${name}”.`; render();
+  }
+  async function send() {
+    R.sendState = "sending"; render();
+    const payload = JSON.stringify({ bank: R.bank.trim(), kind: R.kind, email: R.email.trim(), news: R.news, version: A.VERSION, tier: A.TIER, fileName: fileName(), layout: layoutText() });
+    let sent = false;
+    try { const r = await fetch(A.SEND_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: payload }); const j = await r.json(); sent = !!(j && j.ok); }
+    catch (e) {   // the reply can't always be read from a file on this computer: send it again without reading the reply
+      try { await fetch(A.SEND_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: payload }); sent = true; } catch (e2) {}
+    }
+    if (sent) { R.sendState = ""; R.how = "auto"; record(); R.step = 4; } else R.sendState = "fail";
+    render();
   }
   function wire() {
     const drop = $("rq-drop");
@@ -2300,24 +2461,33 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
       drop.addEventListener("drop", e => load(e.dataTransfer.files[0]));
       $("rq-pick").onchange = () => load($("rq-pick").files[0]);
     }
+    ov.querySelectorAll("[data-c]").forEach(o => o.onclick = o.onkeydown = e => {
+      if (e.type === "keydown" && e.key !== "Enter" && e.key !== " ") return;
+      const c = o.dataset.c;
+      if (c === "help") { R.step = 1; render(); } else if (c === "csv") { R.choice = "csv"; render(); } else close("later");
+    });
+    if ($("rq-b0")) $("rq-b0").onclick = () => { R.choice = null; render(); };
+    if ($("rq-csvdone")) $("rq-csvdone").onclick = () => close("csv");
     const pa = $("rq-pa"), pb = $("rq-pb");
     if (pa) { pa.onscroll = () => { pb.scrollTop = pa.scrollTop; pb.scrollLeft = pa.scrollLeft; }; pb.onscroll = () => { pa.scrollTop = pb.scrollTop; pa.scrollLeft = pb.scrollLeft; }; }
     if ($("rq-pg")) $("rq-pg").onchange = () => { R.page = +$("rq-pg").value; render(); };
-    for (const k of ["bank", "email"]) if ($("rq-" + k)) $("rq-" + k).oninput = () => { R[k] = $("rq-" + k).value; $("rq-next").disabled = !(R.bank.trim() && R.ok); };
-    if ($("rq-kind")) $("rq-kind").onchange = () => { R.kind = $("rq-kind").value; };
-    if ($("rq-ok")) $("rq-ok").onchange = () => { R.ok = $("rq-ok").checked; $("rq-next").disabled = !(R.bank.trim() && R.ok); };
-    if ($("rq-save")) $("rq-save").onclick = () => {
-      const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([layoutText()], { type: "text/plain" })); a.download = fileName(); document.body.appendChild(a); a.click(); a.remove();
-      R.saved = true; render();
-    };
-    if ($("rq-copy")) $("rq-copy").onclick = async () => { try { await navigator.clipboard.writeText(SUPPORT); $("rq-copy").textContent = "✓ Copied"; } catch (e) { $("rq-copy").textContent = SUPPORT; } };
-    if ($("rq-again")) $("rq-again").onclick = () => { Object.assign(R, { step: 0, file: null, pages: null, items: null, known: null, generic: null, page: 0, ok: false, saved: false }); render(); };
-    if ($("rq-back")) $("rq-back").onclick = () => { R.step--; render(); };
+    if ($("rq-which")) $("rq-which").onchange = () => { const f = R.failed[+$("rq-which").value]; Object.assign(R, { file: f.file, pages: f.pages, items: f.items, page: 0 }); render(); };
+    if ($("rq-save")) $("rq-save").onclick = () => { keepFields(); saveLayout(); };
+    if ($("rq-send")) $("rq-send").onclick = send;
+    if ($("rq-copy")) $("rq-copy").onclick = async () => { try { await navigator.clipboard.writeText(SUPPORT); } catch (e) {} R.copied = true; render(); };
+    if ($("rq-manual")) $("rq-manual").onclick = () => { R.how = "manual"; record(); R.step = 4; render(); };
+    if ($("rq-again")) $("rq-again").onclick = () => { Object.assign(R, fresh()); render(); };
+    if ($("rq-back")) $("rq-back").onclick = () => { keepFields(); R.emailErr = ""; R.step--; render(); };
     if ($("rq-next")) $("rq-next").onclick = () => {
-      if (R.step === 3) { const S = A.S; S.bankRequests = S.bankRequests || []; S.bankRequests.push({ bank: R.bank.trim(), kind: R.kind, date: new Date().toISOString().slice(0, 10), ver: A.VERSION }); A.save(); }
+      if (R.step === 2) {
+        keepFields();
+        if (!R.bank.trim()) { R.emailErr = "Please add your bank's name."; render(); $("rq-bank").focus(); return; }
+        if (!EMAIL_OK(R.email)) { R.emailErr = R.email ? "That email address doesn't look right. Please check it." : "Please add your email address so the update can reach you."; render(); $("rq-email").focus(); return; }
+        R.emailErr = "";
+      }
       R.step++; render();
     };
-    if ($("rq-done")) $("rq-done").onclick = close;
+    if ($("rq-done")) $("rq-done").onclick = () => close("sent");
   }
   async function load(file) {
     if (!file) return;
@@ -2326,14 +2496,26 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
     try {
       const { pages, items } = await read(file);
       Object.assign(R, { file, pages, items, page: 0, known: null, generic: null });
-      try { R.known = Core.parseStatement(pages); if (!R.known.ok) R.known = null; } catch (e) {}
+      try { R.known = Imp.knownStatement(pages); if (!R.known.ok) R.known = null; } catch (e) {}
       if (!R.known) try { R.generic = Imp.genericStatement(pages); } catch (e) {}
       render();
     } catch (e) { $("rq-status").innerHTML = `<div class="warn">Couldn't open that PDF: ${esc(e.message || e)}</div>`; }
   }
-  window.__bankRequest = (file, after) => {
-    Object.assign(R, { step: 0, file: null, pages: null, items: null, known: null, generic: null, page: 0, ok: false, saved: false });
-    onClose = after || null; ov.classList.remove("hide"); document.body.style.overflow = "hidden"; render();
+  /** Open the request screens.
+      file: a File (the old way) or null (choose one). opts.failed: [{name, file}] statements that couldn't be read → starts at "What happened".
+      after(outcome): "sent" | "csv" | "later" | "closed". */
+  window.__bankRequest = async (file, after, opts = {}) => {
+    Object.assign(R, fresh(), { otherOk: opts.otherOk || 0, otherReview: !!opts.otherReview });
+    onClose = after || null; ov.classList.remove("hide"); document.body.style.overflow = "hidden";
+    if (opts.failed && opts.failed.length) {
+      R.failed = opts.failed;
+      render();
+      for (const f of R.failed) { try { Object.assign(f, await read(f.file)); } catch (e) { f.pages = [[]]; f.items = [[]]; } }
+      const f0 = R.failed[0]; Object.assign(R, { file: f0.file, pages: f0.pages, items: f0.items });
+      if (R.step !== 0 || R.choice) render();
+      return;
+    }
+    render();
     if (file) load(file);
   };
 })();
