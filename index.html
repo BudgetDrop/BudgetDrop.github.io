@@ -9,10 +9,10 @@
 :root{--bg:#151C2E;--card:#1F2940;--card2:#2A3858;--head:#0F1524;--text:#F2F5FA;--muted:#9AA8C0;--accent:#2EC4A6;--accent-ink:#0B1220;--soft:rgba(46,196,166,.16);--hover:rgba(255,255,255,.04);--shadow:none;--good:#2EC4A6;--warn:#F2B134;--bad:#E05A5A;--line:#334061;--kids:#B57EDC}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 "Segoe UI",system-ui,-apple-system,Roboto,sans-serif}
-header{background:var(--head);display:flex;align-items:center;gap:18px;padding:12px 20px;flex-wrap:wrap;position:sticky;top:0;z-index:5}
+header{background:var(--head);display:flex;align-items:center;gap:12px;padding:12px 20px;flex-wrap:wrap;position:sticky;top:0;z-index:5}
 header h1{font-size:18px;margin:0;color:var(--accent);letter-spacing:.5px}
-nav{display:flex;gap:4px;flex-wrap:wrap}
-nav button{background:none;border:0;color:var(--muted);padding:7px 10px;border-radius:8px;font:inherit;font-size:13.5px;cursor:pointer}
+nav{display:flex;gap:2px;flex-wrap:wrap}
+nav button{background:none;border:0;color:var(--muted);padding:7px 8px;white-space:nowrap;border-radius:8px;font:inherit;font-size:13.5px;cursor:pointer}
 nav button.on{background:var(--soft);color:var(--accent);font-weight:600}
 nav button:disabled{opacity:.45;cursor:default}
 .theme{margin-left:auto;display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px}
@@ -141,6 +141,7 @@ html[data-mode=light] .card{border:1px solid var(--line)}
 .grp{display:flex;justify-content:space-between;align-items:center;padding:10px 4px;cursor:pointer;font-weight:700;font-size:15px;border-bottom:1px solid var(--line);user-select:none}
 .grp:hover{background:var(--hover)}.grp .chg{font-size:12px;font-weight:600;margin-left:8px}.grp .car{display:inline-block;width:14px;transition:transform .15s}.grp.shut .car{transform:rotate(-90deg)}
 @media (max-width:560px){.srow{grid-template-columns:1fr 90px}.srow>div:nth-child(2){display:none}}
+@media print{body.print-one header,body.print-one #savebar,body.print-one .no-print,body.print-one .toast{display:none!important}body.print-one .view{display:none!important}body.print-one .view.printme{display:block!important}body.print-one main{padding:0!important}}
 html[data-tier=starter] [data-tier=plus],html[data-tier=starter] [data-tier=complete],html[data-tier=plus] [data-tier=complete]{display:none!important}
 .help{position:fixed;top:0;right:0;bottom:0;width:380px;max-width:100%;background:var(--card);border-left:1px solid var(--line);z-index:14;box-shadow:-10px 0 30px rgba(0,0,0,.35);display:flex;flex-direction:column}
 .help-top{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);font-size:16px}
@@ -160,6 +161,7 @@ html[data-tier=starter] [data-tier=plus],html[data-tier=starter] [data-tier=comp
 .prog{height:8px;background:var(--card2);border-radius:4px;overflow:hidden;margin-top:4px}.prog div{height:100%;background:var(--accent)}
 .gr{display:inline-block;border-radius:7px;text-align:center;font-weight:800;color:#fff}
 input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background:var(--card2);color:var(--text);border:1px solid var(--line);border-radius:6px;font:inherit;color-scheme:dark}
+@media (max-width:1580px){html:not([data-tier=starter]) #savestate{font-size:11px;max-width:120px;line-height:1.2}html[data-tier=complete] nav button{padding:6px 6px;font-size:13px}html[data-tier=complete] header{gap:8px}}
 @media (max-width:760px){.welcome-grid{grid-template-columns:1fr!important}header{position:static}.hero{grid-template-columns:1fr}.cal .d{min-height:60px;font-size:10px;padding:4px}.chip{font-size:9px}.ask .item{grid-template-columns:1fr 1fr}.bars .b{grid-template-columns:130px 1fr 80px}.bars .b .pct{display:none}header{gap:8px}.theme{margin-left:0}}
 </style>
 </head>
@@ -168,8 +170,11 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
   <h1 style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0"><svg width="22" height="27" viewBox="0 0 40 48" aria-hidden="true"><path d="M20 2 C20 2 2 24 2 32 a18 18 0 0 0 36 0 C38 24 20 2 20 2Z" fill="var(--accent)"/><rect x="11" y="30" width="4.5" height="10" rx="1.5" fill="var(--head)"/><rect x="17.8" y="25" width="4.5" height="15" rx="1.5" fill="var(--head)"/><rect x="24.6" y="33" width="4.5" height="7" rx="1.5" fill="var(--head)"/></svg><span style="color:var(--text)">Budget<span style="color:var(--accent)">Drop</span></span></h1>
   <nav id="nav">
     <button data-v="dash" data-tier="plus">Dashboard</button>
+    <button data-v="cash" data-tier="plus" data-feat="cash">Cash flow</button>
     <button data-v="cal" data-tier="plus">Bill calendar</button>
     <button data-v="sink" data-tier="complete">Sinking funds</button>
+    <button data-v="split" data-tier="complete" data-feat="split">Split costs</button>
+    <button data-v="debt" data-tier="complete" data-feat="debt">Debt payoff</button>
     <button data-v="cats">Spending by category</button>
     <button data-v="txns">Transactions</button>
     <button data-v="import" class="on">Import statements</button>
@@ -214,11 +219,17 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
 <section class="view" id="v-dash"></section>
 <section class="view" id="v-cal"></section>
 <section class="view" id="v-sink"></section>
+<section class="view" id="v-cash"></section>
+<section class="view" id="v-alerts"></section>
+<section class="view" id="v-split"></section>
+<section class="view" id="v-debt"></section>
+<section class="view" id="v-year"></section>
 <section class="view" id="v-cats">
   <div class="toolbar">
     <div class="seg" id="c-per"><button class="on" data-p="m">Month</button><button data-p="q">Quarter</button><button data-p="y">Year</button></div>
     <select id="c-which"></select>
     <div class="seg" id="c-scope"><button class="on" data-s="mine">My money</button><button data-s="shared">Shared account</button><button data-s="all">Everything</button></div>
+    <button class="btn small" id="c-year" data-tier="complete" data-feat="year" style="margin-left:auto">Year-end summary</button>
   </div>
   <div id="c-body"></div>
 </section>
@@ -249,6 +260,8 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
     <div class="row"><span>My budget month starts on day<br><small class="muted">1 = normal calendar months. Use 15 if your month runs the 15th to the 14th.</small></span><input type="number" id="s-start" min="1" max="28" style="width:80px"></div>
     <div class="row"><span>Count Zelle / Venmo / Cash App as spending and income<br><small class="muted">Off = money sent to people is left out of your totals.</small></span><select id="s-p2p"><option value="0">Off</option><option value="1">On</option></select></div>
   </div>
+  <h2 data-tier="plus">Features</h2>
+  <div class="card" data-tier="plus" id="s-features"></div>
   <h2>Auto-sort rules <button class="btn small" onclick="window.__help('settings')" style="margin-left:6px;text-transform:none;letter-spacing:0">? What are these</button></h2>
   <div class="card">
     <div>Auto-sort rules put transactions in a category for you. A rule says: <b>when a description contains this word, put it in this category</b>. For example, <b>JOES COFFEE → Dining</b>. Rules you add here win over the built-in ones, and they also replace any category you set by hand on matching transactions.</div>
@@ -339,7 +352,7 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
     "Midnight":   { bg: "#151C2E", card: "#1F2940", card2: "#2A3858", head: "#0F1524", text: "#F2F5FA", muted: "#9AA8C0", line: "#334061", good: "#2EC4A6", bad: "#E8605A", shadow: "none", dark: true },
     "Graphite":   { bg: "#17181B", card: "#222327", card2: "#2D2F34", head: "#111214", text: "#ECECEE", muted: "#9EA1A8", line: "#3A3C42", good: "#3CC98F", bad: "#EA6560", shadow: "none", dark: true },
     "Light grey": { bg: "#D3D7DD", card: "#EEF0F3", card2: "#E2E5EA", head: "#EEF0F3", text: "#1B212C", muted: "#5D6676", line: "#C9CED6", good: "#1B8F5A", bad: "#C8403A", shadow: "0 1px 2px rgba(20,24,40,.06),0 4px 12px rgba(20,24,40,.07)", dark: false },
-    "Light":      { bg: "#F6F5F2", card: "#FFFFFF", card2: "#F1F0EC", head: "#FFFFFF", text: "#1E2430", muted: "#6B7180", line: "#E6E4DE", good: "#1F9D64", bad: "#D2453F", shadow: "0 1px 2px rgba(20,24,40,.05),0 4px 14px rgba(20,24,40,.06)", dark: false },
+    "Nicole":     { bg: "#F6F5F2", card: "#FFFFFF", card2: "#F1F0EC", head: "#FFFFFF", text: "#1E2430", muted: "#6B7180", line: "#E6E4DE", good: "#1F9D64", bad: "#D2453F", shadow: "0 1px 2px rgba(20,24,40,.05),0 4px 14px rgba(20,24,40,.06)", dark: false },
   };
   // each accent: [on a dark background, on a light background]
   const ACCENTS = { Teal: ["#2EC4A6", "#0E9C82"], Blue: ["#5B9BF8", "#2D6BE0"], Purple: ["#9B7BF7", "#6D4ED8"], Green: ["#4CC77A", "#1F9150"], Amber: ["#F2A93B", "#B86E0C"], Rose: ["#F06C93", "#CF3A68"] };
@@ -454,9 +467,10 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
     let section = null, sub = null, cur = null, pending = null;
     const totalKeys = {
       "deposits and other additions": "deposits", "ATM and debit card subtractions": "atm",
-      "other subtractions": "other", "withdrawals and other subtractions": "withdrawals"
+      "other subtractions": "other", "withdrawals and other subtractions": "withdrawals",
+      "checks": "checks", "service fees": "fees"
     };
-    const bucket = () => section === "Deposits" ? "deposits" : sub === "ATM" ? "atm" : sub === "Other" ? "other" : "withdrawals";
+    const bucket = () => section === "Deposits" ? "deposits" : section === "Checks" ? "checks" : section === "Fees" ? "fees" : sub === "ATM" ? "atm" : sub === "Other" ? "other" : "withdrawals";
     function add(dateS, desc, amt) {
       const [mm, dd, yy] = dateS.split("/").map(Number);
       cur = { date: ymd(2000 + yy, mm, dd), account, raw: desc.trim(), amount: amt };
@@ -467,15 +481,22 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
       const s = line.trim();
       if (!s) continue;
       const hasAmt = AMT_END.test(s);
-      const mt = s.match(/^Total (deposits and other additions|ATM and debit card subtractions|other subtractions|withdrawals and other subtractions)\s+(-?\$?[\d,]+\.\d{2})$/);
-      if (mt) { totals[totalKeys[mt[1]]] = money(mt[2]); section = sub = cur = pending = null; continue; }
+      const mt = s.match(/^Total (deposits and other additions|ATM and debit card subtractions|other subtractions|withdrawals and other subtractions|checks|service fees)\s+(-?\$?[\d,]+\.\d{2})$/i);
+      if (mt) { totals[totalKeys[mt[1].toLowerCase()] || totalKeys[mt[1]]] = money(mt[2]); section = sub = cur = pending = null; continue; }
       if (!hasAmt) {
         if (s === "Deposits and other additions") { section = "Deposits"; sub = cur = pending = null; continue; }
         if (s.startsWith("Withdrawals and other subtractions")) { section = "Withdrawals"; sub = cur = pending = null; continue; }
         if (s.startsWith("ATM and debit card subtractions")) { section = "Withdrawals"; sub = "ATM"; cur = pending = null; continue; }
         if (s.startsWith("Other subtractions")) { section = "Withdrawals"; sub = "Other"; cur = pending = null; continue; }
+        if (s === "Checks" || s.startsWith("Checks - continued")) { section = "Checks"; sub = cur = pending = null; continue; }
+        if (s === "Service fees" || s.startsWith("Service fees - continued")) { section = "Fees"; sub = cur = pending = null; continue; }
       }
       if (!section) continue;
+      if (section === "Checks") {
+        // "07/30/26 368 -80.00", sometimes two checks on one line; a * marks a gap in check numbers
+        for (const c of s.matchAll(/(\d{2}\/\d{2}\/\d{2})\s+(\d+)\*?\s+(-?\$?[\d,]+\.\d{2})/g)) add(c[1], "Check #" + c[2], money(c[3]));
+        cur = null; continue;
+      }
       const md = s.match(/^(\d{2}\/\d{2}\/\d{2})\s+(.*)$/);
       if (md) {
         pending = null;
@@ -494,6 +515,10 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
     }
     const checks = {};
     for (const k in totals) checks[k] = [r2(sums[k] || 0), totals[k]];
+    // whole-statement check: beginning balance plus every transaction read must equal the ending balance,
+    // so a section the reader doesn't know about can never slip through
+    const beg = first.match(/Beginning balance on \w+ \d{1,2}, \d{4}\s+(-?\$?[\d,]+\.\d{2})/);
+    if (beg && bal) checks.balance = [r2(money(beg[1]) + txns.reduce((a, t) => a + t.amount, 0)), money(bal[1])];
     return { kind, account, start, end, txns, checks, balance: bal ? money(bal[1]) : null };
   }
 
@@ -507,12 +532,12 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
     const bal = first.match(/New Balance Total\s+(-?\$?[\d,]+\.\d{2})/);
     const txns = [], sums = {}, totals = {};
     let section = null;
-    const totalMap = { "PAYMENTS AND OTHER CREDITS": "payments", "PURCHASES AND ADJUSTMENTS": "purchases", "INTEREST CHARGED": "interest" };
-    const secMap = { "Payments and Other Credits": "payments", "Purchases and Adjustments": "purchases", "Interest Charged": "interest" };
+    const totalMap = { "PAYMENTS AND OTHER CREDITS": "payments", "PURCHASES AND ADJUSTMENTS": "purchases", "INTEREST CHARGED": "interest", "FEES CHARGED": "fees", "FEES": "fees" };
+    const secMap = { "Payments and Other Credits": "payments", "Purchases and Adjustments": "purchases", "Interest Charged": "interest", "Fees Charged": "fees", "Fees": "fees" };
     for (const line of lines) {
       const s = line.trim();
       if (!s) continue;
-      const mt = s.match(/^TOTAL (PAYMENTS AND OTHER CREDITS|PURCHASES AND ADJUSTMENTS|INTEREST CHARGED) FOR THIS PERIOD\s+(-?\$?[\d,]+\.\d{2})$/);
+      const mt = s.match(/^TOTAL (PAYMENTS AND OTHER CREDITS|PURCHASES AND ADJUSTMENTS|INTEREST CHARGED|FEES CHARGED|FEES) FOR THIS PERIOD\s+(-?\$?[\d,]+\.\d{2})$/);
       if (mt) { totals[totalMap[mt[1]]] = money(mt[2]); section = null; continue; }
       if (secMap[s]) { section = secMap[s]; continue; }
       if (!section) continue;
@@ -521,7 +546,7 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
       const ma = md[3].match(AMT_END);
       if (!ma) continue;
       const amt = money(ma[1]);
-      const desc = md[3].slice(0, ma.index).trim().replace(/\s+\d{4}\s+\d{4}$/, "");
+      const desc = md[3].slice(0, ma.index).trim().replace(/\s+\d{4}\s+\d{4}$/, "").replace(/\s+\d{4}$/, "");
       sums[section] = (sums[section] || 0) + amt;
       if (Math.abs(amt) < 0.005) continue;
       const [mm, dd] = md[1].split("/").map(Number);
@@ -529,6 +554,9 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
     }
     const checks = {};
     for (const k in totals) checks[k] = [r2(sums[k] || 0), totals[k]];
+    // whole-statement check: previous balance plus everything read must equal the new balance
+    const prev = first.match(/Previous Balance\s+(-?\$?[\d,]+\.\d{2})/);
+    if (prev && bal) checks.balance = [r2(money(prev[1]) - txns.reduce((a, t) => a + t.amount, 0)), money(bal[1])];
     return { kind: "Credit Card", account, start, end, txns, checks, balance: bal ? -money(bal[1]) : null };
   }
 
@@ -981,7 +1009,7 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
   const DEF = JSON.parse($("defaults").textContent);
   Core.setPlaces(DEF.states, DEF.cities);
   const STORE = "mymoney.v1";
-  const VERSION = "1.1";
+  const VERSION = "1.3";
   // banks with a dedicated, totals-checked PDF reader, and the version that added each (used to tell people their requested bank arrived)
   const BANKS = [{ name: "Bank of America", aka: ["BofA", "BOA", "Bank of America"], kinds: "checking, savings and credit card", since: "1.0" },
     { name: "Columbia Bank", aka: ["Columbia", "Columbia Bank", "Umpqua", "Umpqua Bank"], kinds: "checking and savings", since: "1.1" }];
@@ -1047,6 +1075,9 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
       S.rulesV3 = true;
     }
     S.settings = S.settings || {};
+    // 1.3 extras: the ones with nothing to set up start on; split costs and debt payoff start off until they're set up
+    if (!S.settings.features) S.settings.features = { cash: true, alerts: true, year: true, split: false, debt: false };
+    if (S.settings.cashWarn == null) S.settings.cashWarn = 500;
     if (!S.settings.shared) S.settings.shared = { ...((S.categories || []).some(c => c.name === SHARED_KIDS.shareCat) ? SHARED_KIDS : SHARED_GENERIC) };
     S.settings = Object.assign(freshState().settings, S.settings);
     for (const c of extraCats(S.settings.shared)) if (!S.categories.some(x => x.name === c.name)) S.categories.push({ ...c });
@@ -1207,6 +1238,7 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
   $("nav").addEventListener("click", e => { const b = e.target.closest("button[data-v]"); if (b) show(b.dataset.v); });
   function applyTheme() {
     const st = S.settings;
+    if (st.bg === "Light") st.bg = "Nicole";   // the lightest background was renamed in 1.3
     if (!st.bg || !Charts.BACKGROUNDS[st.bg]) [st.bg, st.accent] = Charts.OLD[st.theme] || ["Midnight", "Teal"];   // themes before 1.0: Midnight, Graphite, Forest, Carbon
     if (!Charts.ACCENTS[st.accent]) st.accent = "Teal";
     Charts.applyTheme(st.bg, st.accent);
@@ -1573,9 +1605,11 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
   }
   function flows(scope, per) {
     // returns {periods:{key:{in, cats:{name:amount}, txns:[]}}}
-    const out = {}, p2p = S.settings.p2p, sd = S.settings.startDay || 1;
+    const out = {}, p2p = S.settings.p2p, sd = S.settings.startDay || 1, SP = splitCfg();
     for (const t of S.txns) {
       if (!inScope(t, scope)) continue;
+      const inSplit = SP && !isShared(t.account) && (!SP.since || Core.periodOf(t.date, "m", sd) >= SP.since);
+      if (inSplit && t.amount > 0 && senderKey(t) === SP.key) continue;   // split costs: their share paid back is tracked on the Split costs page
       const c = effCat(t), ty = catType(c), k = Core.periodOf(t.date, per, sd);
       const o = out[k] = out[k] || { inc: 0, cats: {}, list: [] };
       if (scope === "all" && c === SH().shareCat) continue;                   // the shared account's own spending is counted instead
@@ -1583,9 +1617,16 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
       if (ty === "Income") { o.inc += t.amount; o.list.push([t, c]); continue; }
       if (c === "Person-to-Person" && p2p) { if (t.amount > 0) o.inc += t.amount; else o.cats[c] = (o.cats[c] || 0) - t.amount; o.list.push([t, c]); continue; }
       if (ty === "Transfer") continue;
-      if (SPEND_TYPES.has(ty) || c === "Uncategorized") { o.cats[c] = (o.cats[c] || 0) - t.amount; o.list.push([t, c]); }
+      const amt = inSplit && SP.cats.has(c) ? t.amount * SP.mine : t.amount;   // split costs count only your share
+      if (SPEND_TYPES.has(ty) || c === "Uncategorized") { o.cats[c] = (o.cats[c] || 0) - amt; o.list.push([t, c]); }
     }
     return out;
+  }
+  // split costs (Complete, 1.3): who you share costs with, which categories, and your share
+  function splitCfg() {
+    const sp = S.split, f = S.settings.features || {};
+    if (!COMPLETE || !sp || !f.split || !sp.key) return null;
+    return { key: sp.key, cats: new Set(sp.cats || []), mine: sp.mine == null ? 0.5 : sp.mine, since: sp.since || null };
   }
   function coverageEnd(scope) {
     const ends = Object.entries(S.accounts).filter(([k, a]) => (scope === "all" || (scope === "shared") === isShared(k)) && a.kind !== "Savings").map(([, a]) => a.last).filter(Boolean);
@@ -1676,6 +1717,7 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
     const sd = S.settings.startDay || 1, g = {};
     for (const t of S.txns) {
       if (isShared(t.account) || t.amount <= 0 || effCat(t) !== "Person-to-Person" || Core.periodOf(t.date, C.per, sd) !== period) continue;
+      if (splitCfg() && senderKey(t) === splitCfg().key && (!splitCfg().since || Core.periodOf(t.date, "m", sd) >= splitCfg().since)) continue;
       const k = senderKey(t); (g[k] = g[k] || []).push(t);
     }
     const list = Object.entries(g).map(([k, ts]) => [k, ts.reduce((a, t) => a + t.amount, 0), ts.length]).sort((a, b) => b[1] - a[1]);
@@ -1950,7 +1992,7 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
     saveState();
   }
   window.__app = { VERSION, BANKS, SEND_URL, get dataHandle() { return fileHandle; }, get lastUnreadable() { return lastUnreadable; }, pdfLib, renderSettings, TIER, STARTER, COMPLETE, backupNow, applyTheme, acctName, get pending() { return !!P; }, accountsList, wireGroups, balanceHistory, groupOf, GROUP_COLORS, get S() { return S; }, set S(v) { S = v; normalize(); applyTheme(); saveState(); }, freshState, handleFiles, show, downloadData, openViaInput, FS_OK, createFile, openFile, flows, save, toast, esc, money, money0, fmtDate, effCat, catType, catColor, isShared,
-    categoryOptions, newCategory, pickCat, coverageEnd, SPEND_TYPES };
+    categoryOptions, newCategory, pickCat, coverageEnd, SPEND_TYPES, senderKey, SH, balanceOn, renderCats, C, splitCfg, inScope };
 })();
 </script>
 <script>/* BudgetDrop: first-run welcome screen and the sample-data demo. */
@@ -2012,6 +2054,7 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
     for (; pay <= end; pay.setDate(pay.getDate() + 14)) add(new Date(pay), CHK, "ACME LOGISTICS DES:DIR DEP ID:4471 PPD", 2150);
     for (let m = new Date(start); m <= end; m = new Date(m.getFullYear(), m.getMonth() + 1, 1)) {
       const y = m.getFullYear(), mo = m.getMonth(), D = d => new Date(y, mo, d), dec = mo === 11;
+      const late = (end.getFullYear() - y) * 12 + end.getMonth() - mo;   // months before the newest one (prices that went up lately)
       add(D(1), CHK, "HOMELOAN SERVICING DES:MORTGAGE ID:88 WEB", -1650);
       add(D(2), CHK, "Online Banking transfer to SAV 5678", -200); add(D(2), SAV, "Online Banking transfer from CHK 1234", 200);
       add(D(1), CHK, "Online Banking transfer to CHK 3456", -250); add(D(1), SHR, "Online Banking transfer from CHK 1234", 250);
@@ -2020,7 +2063,8 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
       add(D(5), CHK, "CITY POWER & LIGHT DES:BILLPAY", -between(dec ? 150 : 90, dec ? 190 : 130));
       add(D(10), CHK, "METRO WATER DES:BILLPAY", -62.4);
       add(D(12), CHK, "FIBERNET INTERNET DES:AUTOPAY", -70);
-      add(D(15), CHK, "SAFEDRIVE AUTO INSURANCE", -148.2);
+      add(D(15), CHK, "SAFEDRIVE AUTO INSURANCE", late <= 1 ? -148.2 : -132);
+      add(D(3), CHK, "BRIGHT STARS DAYCARE DES:TUITION", -1100); add(D(6), CHK, "Zelle payment from TAYLOR SMITH Conf# d4t7w", 550);
       add(D(20), CHK, "VALLEY CREDIT UNION DES:AUTO LOAN", -385);
       add(D(25), CHK, "STUDENT LOAN SVC DES:PAYMENT", -120);
       add(D(9), CHK, "Zelle payment from JORDAN LEE Conf# k3p0", 150);
@@ -2032,7 +2076,7 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
       for (const d of [6, 14, 22, 29]) c(Math.min(d, 28), "QUICKFUEL GAS 0441", between(34, 62));
       for (let k = 0; k < 5; k++) c(2 + Math.floor(rnd() * 26), rnd() < .5 ? "CORNER CAFE" : "PIZZA PALACE #18", between(12, 58));
       for (let k = 0; k < (dec ? 7 : 3); k++) c(2 + Math.floor(rnd() * 26), "ONLINE MARKET*ORDER", between(15, dec ? 140 : 90));
-      c(8, "STREAMBOX SUBSCRIPTION", 15.99); c(11, "GYM FLEX MEMBERSHIP", 29);
+      c(8, "STREAMBOX SUBSCRIPTION", late <= 2 ? 15.99 : 12.99); c(11, "GYM FLEX MEMBERSHIP", 29);
       if (mo === (start.getMonth() + 2) % 12) c(18, "DMV VEHICLE REGISTRATION", 186);
       add(D(26), CHK, "Online Banking payment to CRD 9012", -Math.round(card * 100) / 100);
       add(D(26), CARD, "PAYMENT - THANK YOU", Math.round(card * 100) / 100);
@@ -2043,7 +2087,7 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
     tx.sort((a, b) => a.date.localeCompare(b.date));
     st.txns = !A.COMPLETE ? tx.filter(t => t.account !== SHR && !/CHK 3456/.test(t.raw)) : tx;
     st.rules = [["HOMELOAN SERVICING", "Debt Payments"], ["CITY POWER", "Utilities"], ["METRO WATER", "Utilities"], ["FIBERNET", "Utilities"],
-      ["SAFEDRIVE", "Insurance"], ["AUTO LOAN", "Debt Payments"], ["STUDENT LOAN", "Debt Payments"], ["MARKETPLACE PAYOUT", "Other Income"],
+      ["SAFEDRIVE", "Insurance"], ["BRIGHT STARS", "Childcare"], ["AUTO LOAN", "Debt Payments"], ["STUDENT LOAN", "Debt Payments"], ["MARKETPLACE PAYOUT", "Other Income"],
       ["FRESHMART", "Groceries & Household"], ["QUICKFUEL", "Gas & Fuel"], ["CORNER CAFE", "Dining, Bars & Alcohol"], ["PIZZA PALACE", "Dining, Bars & Alcohol"],
       ["ONLINE MARKET", "Shopping"], ["STREAMBOX", "Subscriptions"], ["GYM FLEX", "Fitness & Activities"], ["DMV VEHICLE", "Auto & Transportation"],
       ["PAYMENT - THANK YOU", "Transfers Between Accounts"], ["KIDS SPORTS", sh.subs[1]], ["SCHOOL STORE", sh.subs[1]], ["KIDS CLOTHING", sh.subs[1]],
@@ -2076,6 +2120,7 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
   A.show("dash");
 })();
 </script>
+<script></script>
 <script>(function(){var n={starter:"BudgetDrop Starter",plus:"BudgetDrop Plus",complete:"BudgetDrop Complete"}[window.BD_TIER];var e=document.getElementById("tier-name");if(e&&n)e.textContent=n;})();</script>
 <script>/* BudgetDrop: "? Help" panel. Plain-language help for whichever screen is open, each with a worked example. */
 (function () {
@@ -2098,6 +2143,30 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
       <p>BudgetDrop guesses when each one is due from last time, works out how much to save each month, and marks it paid when the charge shows up on a statement. Then it starts saving for the next one.</p>
       <p>Money you move into your sinking account is shared across the funds, earliest due first.</p>`,
       ex(`Car registration is $186 every year in June. It's January, so there are 6 months to go: <b>save $31 a month</b>. When the DMV charge shows up in June, it's marked paid and next year's saving starts.`)],
+    cash: ["Cash flow", `
+      <p>Your checking balance for the next 30, 60 or 90 days. BudgetDrop starts from your latest statement balance, adds your paydays, and takes away your bills, card payments and your usual everyday spending.</p>
+      <p>Set <b>Warn me below</b> to the lowest balance you're comfortable with. If the line dips under it, you'll see a heads-up here and on the Dashboard.</p>
+      <p>Bills come from the <b>Bill calendar</b>: fix a bill there and the forecast updates. Extra income like eBay sales isn't counted.</p>`,
+      ex(`Checking is $580 and payday is tomorrow. Rent comes out on the 1st, so on the 11th the balance may dip to $669. With a $750 warning, you'll see a heads-up: hold off about $85 of spending until the 12th.`)],
+    alerts: ["Price changes & subscriptions", `
+      <p><b>Went up</b> lists bills whose latest charge is higher than before. Bills that change every month, like power, are only flagged when a month is 25% above usual.</p>
+      <p><b>Subscriptions</b> are charges sorted as Subscriptions that repeat every month or year, with what each costs a year.</p>`,
+      ex(`Your car insurance was $118 a month and is now $132. That's +$14 a month, about $168 a year: a good reminder to compare quotes.`)],
+    split: ["Split costs", `
+      <p>For costs you share with someone, like childcare. Pick who, which categories and how you split them.</p>
+      <p>From then on, those categories count only <b>your share</b> everywhere in BudgetDrop, and their payments to you are tracked here instead of being left out.</p>
+      <p><b>Running total</b> shows who is ahead. Something they paid directly, like a doctor bill, can be added by hand.</p>`,
+      ex(`Daycare is $2,200 and you split 50/50, so their share is $1,100. They sent $1,000 this month: they're $100 behind. Next month they send $1,200 and you're even again.`)],
+    debt: ["Debt payoff", `
+      <p>Add each loan's balance and interest rate once (your lender's website shows both). BudgetDrop finds the payments in your statements.</p>
+      <p>Pick an extra amount to see how much sooner you'd be debt-free and how much interest you'd save. When a loan is paid off, its payment rolls onto the next one.</p>
+      <p><b>Highest interest first</b> saves the most money. <b>Smallest balance first</b> gets a loan gone sooner. These are estimates; your lender's numbers win.</p>`,
+      ex(`A $14,280 car loan at 6.9% paid $389 a month ends in May 2030. Adding $100 a month ends it in August 2029, and then that $489 goes to the student loan.`)],
+    year: ["Year-end summary", `
+      <p>Your whole year on one page: money in, what you spent by category, what you kept, and your best month.</p>
+      <p><b>Handy at tax time</b> lists totals people often look for, like childcare and loan payments. It isn't tax advice: your tax preparer can tell you what applies to you.</p>
+      <p>Save it as a PDF to print or keep, or as a spreadsheet (CSV).</p>`,
+      ex(`In January, open the summary for last year and save it as a PDF next to your tax papers.`)],
     cats: ["Spending by category", `
       <p>Every transaction sorted into categories, by month, quarter or year. Click a category to see the transactions in it.</p>
       <p>Moving money between your own accounts and paying off your card don't count as spending, so nothing is counted twice.</p>
@@ -2155,7 +2224,10 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
   const DROP = `<svg width="20" height="24" viewBox="0 0 40 48" aria-hidden="true"><path d="M20 2 C20 2 2 24 2 32 a18 18 0 0 0 36 0 C38 24 20 2 20 2Z" fill="var(--accent)"/><rect x="11" y="30" width="4.5" height="10" rx="1.5" fill="var(--head)"/><rect x="17.8" y="25" width="4.5" height="15" rx="1.5" fill="var(--head)"/><rect x="24.6" y="33" width="4.5" height="7" rx="1.5" fill="var(--head)"/></svg>`;
   const el = document.createElement("div"); el.id = "setup"; el.className = "setup hide"; document.body.appendChild(el);
   let step = 0, madeFile = false, imported = 0, notes = [];
-  const STEPS = () => ["Welcome", "Your folder", "Budget month", "Statements", ...(A.COMPLETE ? ["Your accounts"] : []), "Backups", "All set"];
+  const FX = () => window.__features;   // Plus and Complete: the optional extras (features.js)
+  const FXPAGES = new Set(["Extras", "Split costs", "Debt payoff", "Cash flow"]);
+  const STEPS = () => ["Welcome", "Your folder", "Budget month", "Statements", ...(A.COMPLETE ? ["Your accounts"] : []), "Backups", ...(FX() ? ["Extras", ...FX().setupSteps()] : []), "All set"];
+  let solo = null;   // one extras page opened from the app (Settings → Features, or a page's Set up button)
 
   function page(name, num) {
     const S = A.STARTER, st = A.S.settings;
@@ -2222,6 +2294,7 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
             <div style="margin-top:12px;display:flex;gap:10px;align-items:center"><button class="btn main" data-backup>Download a backup now</button>${st.lastBackup ? `<span class="pill" style="background:var(--soft);color:var(--accent)">✓ Done</span>` : ""}</div></div>
           <div class="card" style="margin-top:12px"><b class="su-t">What the reminder looks like</b>
             <div class="su-warn" style="margin-top:8px">It's been 32 days since your last backup. <u>Back up now</u> · <u>Later</u></div></div></div></div>`; }
+      default: if (FXPAGES.has(name) && FX()) return FX().setupPage(name, num); return "";
       case "All set": return `<div class="su-hero"><div style="font-size:46px">🎉</div><h2 class="su-h" style="font-size:34px">You're all set</h2>
         <p class="su-lead" style="margin:0 auto 20px">${notes.some(n => n.outcome === "sent") ? "Your bank request is saved in Settings → Bank requests, and you'll get an email when it's added. " : ""}Here's where to go next.</p>
         <div class="su-g3" style="max-width:780px;width:100%;text-align:left">
@@ -2233,6 +2306,12 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
     }
   }
   function render() {
+    if (solo) {
+      el.innerHTML = `<div class="su-box"><div class="su-bar"><div class="su-logo">${DROP}<span>Budget<span style="color:var(--accent)">Drop</span></span></div></div>
+        <div class="su-body">${FX().setupPage(solo, 0)}</div>
+        <div class="su-foot"><button class="btn" data-solocancel>Cancel</button><button class="btn main" data-solosave>Save</button></div></div>`;
+      FX().setupWire(el, solo, render); return;
+    }
     const L = STEPS(); step = Math.max(0, Math.min(step, L.length - 1));
     const mid = step > 0 && step < L.length - 1;
     el.innerHTML = `<div class="su-box">
@@ -2240,8 +2319,9 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
       ${step > 0 ? `<div class="su-prog">${L.slice(1).map((_, i) => `<div class="${i + 1 < step ? "done" : i + 1 === step ? "now" : ""}"></div>`).join("")}</div>
         <div class="su-steps">${L.slice(1).map((n, i) => `<span class="${i + 1 === step ? "on" : ""}">${n}</span>`).join("")}</div>` : ""}
       <div class="su-body">${page(L[step], step)}</div>
-      ${mid ? `<div class="su-foot"><button class="btn" data-back>← Back</button><div style="display:flex;gap:10px"><button class="btn" data-next>Skip this step</button><button class="btn main" data-next>Continue →</button></div></div>` : ""}</div>`;
+      ${mid ? `<div class="su-foot"><button class="btn" data-back>← Back</button><div style="display:flex;gap:10px"><button class="btn" data-next data-skipstep>Skip this step</button><button class="btn main" data-next>Continue →</button></div></div>` : ""}</div>`;
     wire();
+    if (FXPAGES.has(L[step]) && FX()) FX().setupWire(el, L[step], render);
   }
   function wire() {
     const drop = $("su-drop");
@@ -2267,7 +2347,9 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
   el.addEventListener("click", async e => {
     const t = e.target.closest("button, .su-opt"); if (!t) return;
     const d = t.dataset, st = A.S.settings;
-    if ("next" in d) { step++; render(); }
+    if ("solosave" in d) { const v = { "Split costs": "split", "Debt payoff": "debt", "Cash flow": "cash" }[solo]; FX().setupSave(solo); solo = null; hide(); A.show(v); return; }
+    if ("solocancel" in d) { FX().setupCancel(); solo = null; hide(); return; }
+    if ("next" in d) { const cur = STEPS()[step]; if (FX() && FXPAGES.has(cur)) { if ("skipstep" in d) FX().setupCancel(); else FX().setupSave(cur); } step++; render(); }
     else if ("back" in d) { step--; render(); }
     else if ("skip" in d) { st.setupDone = true; A.save(); hide(); }
     else if ("finish" in d) { st.setupDone = true; A.save(); hide(); A.show(A.STARTER ? "cats" : "dash"); }
@@ -2282,7 +2364,8 @@ input.cell,input[type=date]{width:100%;min-width:60px;padding:3px 6px;background
   });
   function open() { el.classList.remove("hide"); document.body.style.overflow = "hidden"; render(); el.scrollTop = 0; }
   function hide() { el.classList.add("hide"); document.body.style.overflow = ""; }
-  window.__setup = again => { step = again ? 1 : 0; imported = 0; notes = []; open(); };
+  window.__setup = again => { solo = null; step = again ? 1 : 0; imported = 0; notes = []; open(); };
+  window.__setupExtra = k => { if (!FX()) return; solo = { split: "Split costs", debt: "Debt payoff", cash: "Cash flow" }[k]; if (solo) open(); };
   // first visit: no data yet and setup not finished
   if (window.BD_DEMO) { if (!A.S.demo) window.__loadDemo(); }   // the public demo opens straight into sample data
   else if (!A.S.demo && !A.S.txns.length && !A.S.settings.setupDone) window.__setup(false);
